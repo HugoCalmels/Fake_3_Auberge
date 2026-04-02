@@ -2,18 +2,19 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
+} from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import {
   BookingStatus,
   RoomStatus,
   RoomTypeCode,
-} from "src/generated/prisma/client";
-import { CreateAdminRoomDto } from "./dto/create-admin-room.dto";
-import { UpdateAdminRoomStatusDto } from "./dto/update-admin-room-status.dto";
-import { CreateAdminRoomTypeDto } from "./dto/create-admin-room-type.dto";
-import { CreateAdminBookingDto } from "./dto/create-admin-booking.dto";
-import { UpdateAdminBookingDto } from "./dto/update-admin-booking.dto";
+} from 'src/generated/prisma/client';
+import { buildDayRange, getNights, mapAdminBooking } from './admin.utils';
+import { CreateAdminRoomDto } from './dto/create-admin-room.dto';
+import { UpdateAdminRoomStatusDto } from './dto/update-admin-room-status.dto';
+import { CreateAdminRoomTypeDto } from './dto/create-admin-room-type.dto';
+import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
+import { UpdateAdminBookingDto } from './dto/update-admin-booking.dto';
 
 @Injectable()
 export class AdminService {
@@ -21,7 +22,7 @@ export class AdminService {
 
   async getRooms() {
     return this.prisma.room.findMany({
-      orderBy: [{ floor: "asc" }, { number: "asc" }],
+      orderBy: [{ floor: 'asc' }, { number: 'asc' }],
       select: {
         id: true,
         number: true,
@@ -38,7 +39,7 @@ export class AdminService {
     });
 
     if (existingRoom) {
-      throw new BadRequestException("Une chambre avec ce numéro existe déjà.");
+      throw new BadRequestException('Une chambre avec ce numéro existe déjà.');
     }
 
     const roomType = await this.prisma.roomType.findUnique({
@@ -46,7 +47,7 @@ export class AdminService {
     });
 
     if (!roomType) {
-      throw new NotFoundException("Type de chambre introuvable.");
+      throw new NotFoundException('Type de chambre introuvable.');
     }
 
     return this.prisma.room.create({
@@ -72,7 +73,7 @@ export class AdminService {
     });
 
     if (!room) {
-      throw new NotFoundException("Chambre introuvable.");
+      throw new NotFoundException('Chambre introuvable.');
     }
 
     return this.prisma.room.update({
@@ -99,12 +100,12 @@ export class AdminService {
     });
 
     if (!room) {
-      throw new NotFoundException("Chambre introuvable.");
+      throw new NotFoundException('Chambre introuvable.');
     }
 
     if (room.bookings.length > 0) {
       throw new BadRequestException(
-        "Impossible de supprimer une chambre liée à des réservations.",
+        'Impossible de supprimer une chambre liée à des réservations.',
       );
     }
 
@@ -117,7 +118,7 @@ export class AdminService {
 
   async getRoomTypes() {
     return this.prisma.roomType.findMany({
-      orderBy: { name: "asc" },
+      orderBy: { name: 'asc' },
       select: {
         id: true,
         code: true,
@@ -140,7 +141,7 @@ export class AdminService {
 
     if (existingCode) {
       throw new BadRequestException(
-        "Un type de chambre avec ce code ou ce nom existe déjà.",
+        'Un type de chambre avec ce code ou ce nom existe déjà.',
       );
     }
 
@@ -165,7 +166,7 @@ export class AdminService {
 
   async getBookings() {
     const bookings = await this.prisma.booking.findMany({
-      orderBy: { startDate: "desc" },
+      orderBy: { startDate: 'desc' },
       include: {
         room: {
           include: {
@@ -176,7 +177,7 @@ export class AdminService {
       },
     });
 
-    return bookings.map((booking) => this.mapBooking(booking));
+    return bookings.map(mapAdminBooking);
   }
 
   async getBookingById(id: string) {
@@ -193,10 +194,10 @@ export class AdminService {
     });
 
     if (!booking) {
-      throw new NotFoundException("Réservation introuvable.");
+      throw new NotFoundException('Réservation introuvable.');
     }
 
-    return this.mapBooking(booking);
+    return mapAdminBooking(booking);
   }
 
   async createBooking(dto: CreateAdminBookingDto) {
@@ -208,12 +209,12 @@ export class AdminService {
     });
 
     if (!room) {
-      throw new NotFoundException("Chambre introuvable.");
+      throw new NotFoundException('Chambre introuvable.');
     }
 
     if (room.status === RoomStatus.maintenance) {
       throw new BadRequestException(
-        "Impossible de réserver une chambre en maintenance.",
+        'Impossible de réserver une chambre en maintenance.',
       );
     }
 
@@ -221,7 +222,7 @@ export class AdminService {
     const endDate = new Date(dto.endDate);
 
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException("Dates invalides.");
+      throw new BadRequestException('Dates invalides.');
     }
 
     if (startDate >= endDate) {
@@ -231,18 +232,18 @@ export class AdminService {
     }
 
     if (dto.persons < 1) {
-      throw new BadRequestException("Au moins une personne est requise.");
+      throw new BadRequestException('Au moins une personne est requise.');
     }
 
     if (dto.adultMeals + dto.childMeals > dto.persons) {
       throw new BadRequestException(
-        "Le nombre de repas ne peut pas dépasser le nombre de personnes.",
+        'Le nombre de repas ne peut pas dépasser le nombre de personnes.',
       );
     }
 
     if (dto.persons > room.roomType.maxCapacity) {
       throw new BadRequestException(
-        "Le nombre de personnes dépasse la capacité de la chambre.",
+        'Le nombre de personnes dépasse la capacité de la chambre.',
       );
     }
 
@@ -254,7 +255,7 @@ export class AdminService {
         : null;
 
     if (dto.mealPlanId && !mealPlan) {
-      throw new NotFoundException("Formule introuvable.");
+      throw new NotFoundException('Formule introuvable.');
     }
 
     if (mealPlan) {
@@ -291,11 +292,11 @@ export class AdminService {
 
     if (overlappingBooking) {
       throw new BadRequestException(
-        "Cette chambre est déjà réservée sur cette période.",
+        'Cette chambre est déjà réservée sur cette période.',
       );
     }
 
-    const nights = this.getNights(startDate, endDate);
+    const nights = getNights(startDate, endDate);
     const roomPrice = room.roomType.basePrice * nights;
     const mealPlanPrice = mealPlan
       ? (mealPlan.adultPrice * dto.adultMeals +
@@ -335,7 +336,7 @@ export class AdminService {
       },
     });
 
-    return this.mapBooking(booking);
+    return mapAdminBooking(booking);
   }
 
   async updateBooking(id: string, dto: UpdateAdminBookingDto) {
@@ -352,7 +353,7 @@ export class AdminService {
     });
 
     if (!booking) {
-      throw new NotFoundException("Réservation introuvable.");
+      throw new NotFoundException('Réservation introuvable.');
     }
 
     if (
@@ -360,37 +361,39 @@ export class AdminService {
       booking.status === BookingStatus.checked_out
     ) {
       throw new BadRequestException(
-        "Impossible de modifier cette réservation.",
+        'Impossible de modifier cette réservation.',
       );
     }
 
-    const startDate = dto.startDate ? new Date(dto.startDate) : booking.startDate;
+    const startDate = dto.startDate
+      ? new Date(dto.startDate)
+      : booking.startDate;
     const endDate = dto.endDate ? new Date(dto.endDate) : booking.endDate;
     const persons = dto.persons ?? booking.persons;
     const adultMeals = dto.adultMeals ?? booking.adultMeals;
     const childMeals = dto.childMeals ?? booking.childMeals;
 
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException("Dates invalides.");
+      throw new BadRequestException('Dates invalides.');
     }
 
     if (startDate >= endDate) {
-      throw new BadRequestException("Dates invalides.");
+      throw new BadRequestException('Dates invalides.');
     }
 
     if (persons < 1) {
-      throw new BadRequestException("Au moins une personne est requise.");
+      throw new BadRequestException('Au moins une personne est requise.');
     }
 
     if (adultMeals + childMeals > persons) {
       throw new BadRequestException(
-        "Le nombre de repas ne peut pas dépasser le nombre de personnes.",
+        'Le nombre de repas ne peut pas dépasser le nombre de personnes.',
       );
     }
 
     if (persons > booking.room.roomType.maxCapacity) {
       throw new BadRequestException(
-        "Le nombre de personnes dépasse la capacité de la chambre.",
+        'Le nombre de personnes dépasse la capacité de la chambre.',
       );
     }
 
@@ -405,7 +408,7 @@ export class AdminService {
         : null;
 
     if (nextMealPlanId && !mealPlan) {
-      throw new NotFoundException("Formule introuvable.");
+      throw new NotFoundException('Formule introuvable.');
     }
 
     if (mealPlan) {
@@ -442,10 +445,10 @@ export class AdminService {
     });
 
     if (overlapping) {
-      throw new BadRequestException("Conflit avec une autre réservation.");
+      throw new BadRequestException('Conflit avec une autre réservation.');
     }
 
-    const nights = this.getNights(startDate, endDate);
+    const nights = getNights(startDate, endDate);
     const roomPrice = booking.room.roomType.basePrice * nights;
     const mealPlanPrice = mealPlan
       ? (mealPlan.adultPrice * adultMeals + mealPlan.childPrice * childMeals) *
@@ -482,7 +485,7 @@ export class AdminService {
       },
     });
 
-    return this.mapBooking(updated);
+    return mapAdminBooking(updated);
   }
 
   async cancelBooking(id: string) {
@@ -499,7 +502,7 @@ export class AdminService {
     });
 
     if (!booking) {
-      throw new NotFoundException("Réservation introuvable.");
+      throw new NotFoundException('Réservation introuvable.');
     }
 
     const today = new Date();
@@ -515,7 +518,7 @@ export class AdminService {
     );
 
     if (booking.status === BookingStatus.cancelled) {
-      throw new BadRequestException("Cette réservation est déjà annulée.");
+      throw new BadRequestException('Cette réservation est déjà annulée.');
     }
 
     if (booking.status === BookingStatus.checked_out) {
@@ -549,7 +552,7 @@ export class AdminService {
       },
     });
 
-    return this.mapBooking(updated);
+    return mapAdminBooking(updated);
   }
 
   async assignRoom(id: string, roomId: string) {
@@ -561,7 +564,7 @@ export class AdminService {
     });
 
     if (!booking) {
-      throw new NotFoundException("Réservation introuvable.");
+      throw new NotFoundException('Réservation introuvable.');
     }
 
     if (
@@ -569,7 +572,7 @@ export class AdminService {
       booking.status === BookingStatus.checked_out
     ) {
       throw new BadRequestException(
-        "Impossible de réassigner cette réservation.",
+        'Impossible de réassigner cette réservation.',
       );
     }
 
@@ -581,7 +584,7 @@ export class AdminService {
     });
 
     if (!room) {
-      throw new NotFoundException("Chambre introuvable.");
+      throw new NotFoundException('Chambre introuvable.');
     }
 
     if (room.status === RoomStatus.maintenance) {
@@ -592,7 +595,7 @@ export class AdminService {
 
     if (booking.persons > room.roomType.maxCapacity) {
       throw new BadRequestException(
-        "Le nombre de personnes dépasse la capacité de la chambre.",
+        'Le nombre de personnes dépasse la capacité de la chambre.',
       );
     }
 
@@ -631,11 +634,11 @@ export class AdminService {
 
     if (overlapping) {
       throw new BadRequestException(
-        "La chambre est déjà prise sur cette période.",
+        'La chambre est déjà prise sur cette période.',
       );
     }
 
-    const nights = this.getNights(booking.startDate, booking.endDate);
+    const nights = getNights(booking.startDate, booking.endDate);
     const roomPrice = room.roomType.basePrice * nights;
     const mealPlanPrice = booking.mealPlan
       ? (booking.mealPlan.adultPrice * booking.adultMeals +
@@ -666,27 +669,27 @@ export class AdminService {
       },
     });
 
-    return this.mapBooking(updated);
+    return mapAdminBooking(updated);
   }
 
   async getPlanning(from: string, to: string) {
     if (!from || !to) {
-      throw new BadRequestException("Les paramètres from et to sont requis.");
+      throw new BadRequestException('Les paramètres from et to sont requis.');
     }
 
     const fromDate = new Date(from);
     const toDate = new Date(to);
 
     if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
-      throw new BadRequestException("Période invalide.");
+      throw new BadRequestException('Période invalide.');
     }
 
     if (fromDate > toDate) {
-      throw new BadRequestException("La période demandée est invalide.");
+      throw new BadRequestException('La période demandée est invalide.');
     }
 
     const rooms = await this.prisma.room.findMany({
-      orderBy: [{ floor: "asc" }, { number: "asc" }],
+      orderBy: [{ floor: 'asc' }, { number: 'asc' }],
       include: {
         roomType: true,
       },
@@ -709,13 +712,13 @@ export class AdminService {
         room: true,
         mealPlan: true,
       },
-      orderBy: { startDate: "asc" },
+      orderBy: { startDate: 'asc' },
     });
 
     return {
       from,
       to,
-      days: this.buildDayRange(fromDate, toDate),
+      days: buildDayRange(fromDate, toDate),
       rooms: rooms.map((room) => ({
         id: room.id,
         number: room.number,
@@ -736,82 +739,5 @@ export class AdminService {
         totalPrice: booking.totalPrice,
       })),
     };
-  }
-
-  private mapBooking(booking: {
-    id: string;
-    roomId: string;
-    mealPlanId: string | null;
-    startDate: Date;
-    endDate: Date;
-    persons: number;
-    adultMeals: number;
-    childMeals: number;
-    guestName: string;
-    guestEmail: string;
-    status: BookingStatus;
-    notes: string | null;
-    roomPrice: number;
-    mealPlanPrice: number;
-    totalPrice: number;
-    createdAt: Date;
-    updatedAt: Date;
-    room: {
-      number: string;
-      roomType: {
-        name: string;
-      };
-    };
-    mealPlan?: {
-      id: string;
-      name: string;
-      code: string;
-    } | null;
-  }) {
-    return {
-      id: booking.id,
-      roomId: booking.roomId,
-      mealPlanId: booking.mealPlanId,
-      mealPlanName: booking.mealPlan?.name ?? null,
-      mealPlanCode: booking.mealPlan?.code ?? null,
-      roomNumber: booking.room.number,
-      roomTypeName: booking.room.roomType.name,
-      guestName: booking.guestName,
-      guestEmail: booking.guestEmail,
-      startDate: booking.startDate.toISOString(),
-      endDate: booking.endDate.toISOString(),
-      persons: booking.persons,
-      adultMeals: booking.adultMeals,
-      childMeals: booking.childMeals,
-      status: booking.status,
-      notes: booking.notes,
-      roomPrice: booking.roomPrice,
-      mealPlanPrice: booking.mealPlanPrice,
-      totalPrice: booking.totalPrice,
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: booking.updatedAt.toISOString(),
-    };
-  }
-
-  private getNights(start: Date, end: Date) {
-    const diff = end.getTime() - start.getTime();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  }
-
-  private buildDayRange(from: Date, to: Date) {
-    const days: string[] = [];
-    const current = new Date(
-      from.getFullYear(),
-      from.getMonth(),
-      from.getDate(),
-    );
-    const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-
-    while (current <= end) {
-      days.push(current.toISOString().slice(0, 10));
-      current.setDate(current.getDate() + 1);
-    }
-
-    return days;
   }
 }

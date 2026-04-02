@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { GetBookingAvailabilityDto } from "./dto/get-booking-availability.dto";
+import { BadRequestException, Injectable } from '@nestjs/common';
+import type { MealPlanCode, RoomTypeCode } from '../../generated/prisma/enums';
+import { PrismaService } from '../../prisma/prisma.service';
+import { CreateBookingDto } from './dto/create-booking.dto';
+import { GetBookingAvailabilityDto } from './dto/get-booking-availability.dto';
 
 @Injectable()
 export class BookingsService {
@@ -14,7 +15,7 @@ export class BookingsService {
     const end = new Date(endDate);
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException("Dates invalides.");
+      throw new BadRequestException('Dates invalides.');
     }
 
     if (end <= start) {
@@ -27,11 +28,11 @@ export class BookingsService {
       include: {
         rooms: {
           where: {
-            status: "available",
+            status: 'available',
             bookings: {
               none: {
                 status: {
-                  in: ["pending", "confirmed", "checked_in"],
+                  in: ['pending', 'confirmed', 'checked_in'],
                 },
                 startDate: { lt: end },
                 endDate: { gt: start },
@@ -46,7 +47,7 @@ export class BookingsService {
         },
       },
       orderBy: {
-        name: "asc",
+        name: 'asc',
       },
     });
 
@@ -82,7 +83,7 @@ export class BookingsService {
     const end = new Date(endDate);
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException("Dates invalides.");
+      throw new BadRequestException('Dates invalides.');
     }
 
     if (end <= start) {
@@ -92,7 +93,7 @@ export class BookingsService {
     }
 
     if (!selections.length) {
-      throw new BadRequestException("Aucune chambre sélectionnée.");
+      throw new BadRequestException('Aucune chambre sélectionnée.');
     }
 
     const nights = this.getNights(start, end);
@@ -101,7 +102,7 @@ export class BookingsService {
       const normalizedGuestName = guestName.trim();
       const normalizedGuestEmail = guestEmail.trim().toLowerCase();
 
-      const groupedSelections = new Map<string, typeof selections>();
+      const groupedSelections = new Map<RoomTypeCode, typeof selections>();
 
       for (const selection of selections) {
         const key = selection.roomTypeId;
@@ -130,7 +131,7 @@ export class BookingsService {
       for (const [roomTypeCode, grouped] of groupedSelections.entries()) {
         const roomType = await tx.roomType.findFirst({
           where: {
-            code: roomTypeCode as any,
+            code: roomTypeCode,
           },
         });
 
@@ -145,7 +146,7 @@ export class BookingsService {
 
           if (persons < 1) {
             throw new BadRequestException(
-              "Chaque chambre doit contenir au moins une personne.",
+              'Chaque chambre doit contenir au moins une personne.',
             );
           }
 
@@ -157,12 +158,12 @@ export class BookingsService {
 
           const mealPlan = await tx.mealPlan.findFirst({
             where: {
-              code: selection.mealPlanCode as any,
+              code: selection.mealPlanCode as MealPlanCode,
             },
           });
 
           if (!mealPlan) {
-            throw new BadRequestException("Formule introuvable.");
+            throw new BadRequestException('Formule introuvable.');
           }
 
           const allowedMealPlan = await tx.roomTypeMealPlan.findUnique({
@@ -184,11 +185,11 @@ export class BookingsService {
         const availableRooms = await tx.room.findMany({
           where: {
             roomTypeId: roomType.id,
-            status: "available",
+            status: 'available',
             bookings: {
               none: {
                 status: {
-                  in: ["pending", "confirmed", "checked_in"],
+                  in: ['pending', 'confirmed', 'checked_in'],
                 },
                 startDate: { lt: end },
                 endDate: { gt: start },
@@ -196,7 +197,7 @@ export class BookingsService {
             },
           },
           orderBy: {
-            number: "asc",
+            number: 'asc',
           },
           take: grouped.length,
           select: {
@@ -235,7 +236,7 @@ export class BookingsService {
         const allocation = allocatedRoomsByType.get(selection.roomTypeId);
 
         if (!allocation) {
-          throw new BadRequestException("Allocation de chambre impossible.");
+          throw new BadRequestException('Allocation de chambre impossible.');
         }
 
         const room = allocation.rooms.shift();
@@ -248,12 +249,12 @@ export class BookingsService {
 
         const mealPlan = await tx.mealPlan.findFirst({
           where: {
-            code: selection.mealPlanCode as any,
+            code: selection.mealPlanCode as MealPlanCode,
           },
         });
 
         if (!mealPlan) {
-          throw new BadRequestException("Formule introuvable.");
+          throw new BadRequestException('Formule introuvable.');
         }
 
         const persons = selection.adults + selection.children;
@@ -278,7 +279,7 @@ export class BookingsService {
             childMeals,
             guestName: normalizedGuestName,
             guestEmail: normalizedGuestEmail,
-            status: "confirmed",
+            status: 'confirmed',
             roomPrice,
             mealPlanPrice,
             totalPrice,
@@ -319,7 +320,7 @@ export class BookingsService {
 
     return {
       success: true,
-      message: "Réservation créée.",
+      message: 'Réservation créée.',
       bookingIds: result.bookingIds,
       roomIds: result.roomIds,
       selectionCount: selections.length,

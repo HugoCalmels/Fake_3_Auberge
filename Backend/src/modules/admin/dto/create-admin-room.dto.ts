@@ -1,4 +1,4 @@
-import { IsInt, IsString, Min, MinLength, IsIn } from "class-validator";
+import { IsInt, IsString, Min, MinLength, IsIn } from 'class-validator';
 
 export class CreateAdminRoomDto {
   @IsString()
@@ -13,6 +13,6 @@ export class CreateAdminRoomDto {
   @MinLength(1)
   roomTypeId: string;
 
-  @IsIn(["available", "occupied", "maintenance"])
-  status: "available" | "occupied" | "maintenance";
+  @IsIn(['available', 'occupied', 'maintenance'])
+  status: 'available' | 'occupied' | 'maintenance';
 }

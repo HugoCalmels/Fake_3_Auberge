@@ -1,18 +1,115 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
+
+jest.mock('../../prisma/prisma.service', () => ({
+  PrismaService: class PrismaServiceMock {},
+}));
+
 import { BookingsService } from './bookings.service';
 
 describe('BookingsService', () => {
-  let service: BookingsService;
+  it('rejects an invalid availability range', async () => {
+    const service = new BookingsService({} as never);
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [BookingsService],
-    }).compile();
-
-    service = module.get<BookingsService>(BookingsService);
+    await expect(
+      service.getAvailability({
+        startDate: '2026-04-12',
+        endDate: '2026-04-10',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('creates a booking and computes pricing', async () => {
+    const tx = {
+      roomType: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'rt_1',
+          code: 'double',
+          name: 'Chambre double',
+          maxCapacity: 2,
+          basePrice: 85,
+        }),
+      },
+      mealPlan: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'mp_1',
+          code: 'half_board',
+          name: 'Demi-pension',
+          adultPrice: 18,
+          childPrice: 12,
+        }),
+      },
+      roomTypeMealPlan: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'link_1',
+        }),
+      },
+      room: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'room_101',
+            number: '101',
+          },
+        ]),
+      },
+      booking: {
+        create: jest.fn().mockResolvedValue({
+          id: 'booking_1',
+          roomId: 'room_101',
+          roomPrice: 170,
+          mealPlanPrice: 72,
+          totalPrice: 242,
+        }),
+      },
+    };
+
+    const prisma = {
+      $transaction: jest.fn((callback: (mockTx: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    };
+
+    const service = new BookingsService(prisma as never);
+
+    await expect(
+      service.createBooking({
+        startDate: '2026-04-10',
+        endDate: '2026-04-12',
+        guestName: 'Jean Dupont',
+        guestEmail: 'JEAN@EXAMPLE.COM',
+        selections: [
+          {
+            roomTypeId: 'double',
+            adults: 2,
+            children: 0,
+            mealPlanCode: 'half_board',
+          },
+        ],
+      }),
+    ).resolves.toMatchObject({
+      success: true,
+      selectionCount: 1,
+      pricing: {
+        nights: 2,
+        roomPrice: 170,
+        mealPlanPrice: 72,
+        totalPrice: 242,
+      },
+    });
+
+    const bookingCreateCalls = tx.booking.create.mock.calls as [
+      [
+        {
+          data: {
+            guestEmail: string;
+            status: string;
+            totalPrice: number;
+          };
+        },
+      ],
+    ];
+
+    expect(bookingCreateCalls[0][0].data.guestEmail).toBe('jean@example.com');
+    expect(bookingCreateCalls[0][0].data.status).toBe('confirmed');
+    expect(bookingCreateCalls[0][0].data.totalPrice).toBe(242);
   });
 });

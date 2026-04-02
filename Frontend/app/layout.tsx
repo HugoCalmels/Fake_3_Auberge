@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import "./globals.css";
 import { Inter, Montserrat } from "next/font/google";
-import Navbar from "@/src/layout/Navbar";
 
+import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,19 +21,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="fr" className={`${inter.variable} ${heading.variable}`}>
-      <body className="bg-[#ece7df]">
-        <div className="pointer-events-none fixed inset-0 z-[9999] flex justify-center">
-          <div className="w-full max-w-[1280px] border-x border-red-400/40" />
-        </div>
-
-        <Navbar />
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

@@ -9,12 +9,12 @@ import {
   Min,
   MinLength,
   ValidateNested,
-} from "class-validator";
-import { Type } from "class-transformer";
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateBookingSelectionDto {
-  @IsIn(["double", "twin", "quadruple", "familiale", "cinq_places"])
-  roomTypeId: "double" | "twin" | "quadruple" | "familiale" | "cinq_places";
+  @IsIn(['double', 'twin', 'quadruple', 'familiale', 'cinq_places'])
+  roomTypeId: 'double' | 'twin' | 'quadruple' | 'familiale' | 'cinq_places';
 
   @IsInt()
   @Min(1)
@@ -24,8 +24,8 @@ export class CreateBookingSelectionDto {
   @Min(0)
   children: number;
 
-  @IsIn(["room_only", "half_board", "full_board"])
-  mealPlanCode: "room_only" | "half_board" | "full_board";
+  @IsIn(['room_only', 'half_board', 'full_board'])
+  mealPlanCode: 'room_only' | 'half_board' | 'full_board';
 }
 
 export class CreateBookingDto {

@@ -1,4 +1,4 @@
-import { IsInt, IsString, Min, MinLength } from "class-validator";
+import { IsInt, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateAdminRoomTypeDto {
   @IsString()

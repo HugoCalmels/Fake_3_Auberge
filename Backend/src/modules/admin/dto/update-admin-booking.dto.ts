@@ -4,7 +4,7 @@ import {
   IsOptional,
   IsString,
   Min,
-} from "class-validator";
+} from 'class-validator';
 
 export class UpdateAdminBookingDto {
   @IsOptional()

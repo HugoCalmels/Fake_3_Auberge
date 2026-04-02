@@ -1,0 +1,59 @@
+{
+  "workbench.colorTheme": "Default Dark+",
+  "errorLens.enabled": false,
+  "problems.decorations.enabled": false,
+  "explorer.decorations.colors": false,
+  "explorer.decorations.badges": true,
+  "eslint.alwaysShowStatus": true,
+  "editor.semanticHighlighting.enabled": false,
+  "editor.semanticTokenColorCustomizations": {
+    "enabled": false
+  },
+  "editor.bracketPairColorization.enabled": false,
+  "editor.guides.bracketPairs": false,
+  "editor.tokenColorCustomizations": {
+    "textMateRules": [
+      {
+        "scope": [
+          "entity.name.function",
+          "meta.function-call",
+          "support.function"
+        ],
+        "settings": {
+          "foreground": "#DCDCAA"
+        }
+      },
+      {
+        "scope": [
+          "variable",
+          "meta.definition.variable.name",
+          "meta.object-literal.key"
+        ],
+        "settings": {
+          "foreground": "#9CDCFE"
+        }
+      },
+      {
+        "scope": [
+          "storage.type",
+          "storage.modifier",
+          "keyword",
+          "keyword.control"
+        ],
+        "settings": {
+          "foreground": "#569CD6"
+        }
+      },
+      {
+        "scope": [
+          "entity.name.type",
+          "support.type",
+          "support.class"
+        ],
+        "settings": {
+          "foreground": "#4EC9B0"
+        }
+      }
+    ]
+  }
+}

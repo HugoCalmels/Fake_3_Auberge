@@ -1,13 +1,13 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
-import { BookingsService } from "./bookings.service";
-import { CreateBookingDto } from "./dto/create-booking.dto";
-import { GetBookingAvailabilityDto } from "./dto/get-booking-availability.dto";
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BookingsService } from './bookings.service';
+import { CreateBookingDto } from './dto/create-booking.dto';
+import { GetBookingAvailabilityDto } from './dto/get-booking-availability.dto';
 
-@Controller("bookings")
+@Controller('bookings')
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
-  @Get("availability")
+  @Get('availability')
   async getAvailability(@Query() dto: GetBookingAvailabilityDto) {
     return this.bookingsService.getAvailability(dto);
   }
