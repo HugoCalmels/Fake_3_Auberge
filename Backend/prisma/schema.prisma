@@ -1,0 +1,133 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoomStatus {
+  available
+  occupied
+  maintenance
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  checked_in
+  checked_out
+  cancelled
+}
+
+enum RoomTypeCode {
+  double
+  twin
+  quadruple
+  familiale
+  cinq_places
+}
+
+enum MealPlanCode {
+  room_only
+  half_board
+  full_board
+}
+
+model RoomType {
+  id          String             @id @default(cuid())
+  code        RoomTypeCode       @unique
+  name        String
+  description String
+  maxCapacity Int
+  basePrice   Int
+
+  rooms       Room[]
+  mealPlans   RoomTypeMealPlan[]
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model MealPlan {
+  id         String             @id @default(cuid())
+  code       MealPlanCode       @unique
+  name       String
+
+  adultPrice Int
+  childPrice Int
+
+  roomTypes  RoomTypeMealPlan[]
+  bookings   Booking[]
+
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+}
+
+model RoomTypeMealPlan {
+  id         String    @id @default(cuid())
+  roomTypeId String
+  mealPlanId String
+
+  roomType   RoomType  @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  mealPlan   MealPlan  @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([roomTypeId, mealPlanId])
+}
+
+model Room {
+  id         String      @id @default(cuid())
+  number     String      @unique
+  floor      Int
+  status     RoomStatus  @default(available)
+
+  roomTypeId String
+  roomType   RoomType    @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+
+  bookings   Booking[]
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Booking {
+  id             String         @id @default(cuid())
+
+  roomId         String
+  mealPlanId     String?
+
+  room           Room           @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  mealPlan       MealPlan?      @relation(fields: [mealPlanId], references: [id], onDelete: Restrict)
+
+  startDate      DateTime
+  endDate        DateTime
+
+  // ✅ NOUVELLE LOGIQUE
+  persons        Int
+  adultMeals     Int
+  childMeals     Int
+
+  status         BookingStatus  @default(confirmed)
+
+  guestName      String
+  guestEmail     String
+  notes          String?
+
+  roomPrice      Int
+  mealPlanPrice  Int
+  totalPrice     Int
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("owner")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
