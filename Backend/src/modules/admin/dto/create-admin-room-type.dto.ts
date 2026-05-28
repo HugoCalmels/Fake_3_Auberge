@@ -1,10 +1,6 @@
-import { IsInt, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateAdminRoomTypeDto {
-  @IsString()
-  @MinLength(1)
-  code!: string;
-
   @IsString()
   @MinLength(1)
   name!: string;
@@ -20,4 +16,8 @@ export class CreateAdminRoomTypeDto {
   @IsInt()
   @Min(0)
   basePrice!: number;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }

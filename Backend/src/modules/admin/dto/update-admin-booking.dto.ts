@@ -1,5 +1,6 @@
 import {
   IsDateString,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -18,23 +19,34 @@ export class UpdateAdminBookingDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  persons?: number;
+  adults?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
-  adultMeals?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  childMeals?: number;
+  children?: number;
 
   @IsOptional()
   @IsString()
-  mealPlanId?: string | null;
+  guestPhone?: string;
 
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+@IsIn(['pending', 'confirmed', 'checked_in', 'checked_out', 'no_show', 'cancelled'])
+status?: 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'no_show' | 'cancelled';
+
+  @IsOptional()
+  @IsIn(['paid', 'unpaid'])
+  paymentStatus?: 'paid' | 'unpaid';
+
+  @IsOptional()
+  @IsString()
+  paymentNote?: string;
+
+  @IsOptional()
+  @IsIn(['room_only', 'half_board', 'full_board'])
+  mealPlanCode?: 'room_only' | 'half_board' | 'full_board';
 }

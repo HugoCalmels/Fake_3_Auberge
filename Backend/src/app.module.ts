@@ -3,8 +3,11 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { SystemLogsModule } from './modules/system-logs/system-logs.module';
 
 @Module({
-  imports: [PrismaModule, BookingsModule, AuthModule, AdminModule],
+  imports: [PrismaModule, BookingsModule, AuthModule, AdminModule, ContactModule, PaymentsModule, SystemLogsModule],
 })
 export class AppModule {}

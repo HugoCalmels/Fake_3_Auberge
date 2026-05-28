@@ -19,15 +19,8 @@ enum BookingStatus {
   confirmed
   checked_in
   checked_out
+  no_show
   cancelled
-}
-
-enum RoomTypeCode {
-  double
-  twin
-  quadruple
-  familiale
-  cinq_places
 }
 
 enum MealPlanCode {
@@ -36,91 +29,133 @@ enum MealPlanCode {
   full_board
 }
 
+enum BookingSource {
+  website
+  admin_manual
+}
+
+enum PaymentStatus {
+  unpaid
+  paid
+}
+
 model RoomType {
-  id          String             @id @default(cuid())
-  code        RoomTypeCode       @unique
+  id          String   @id @default(cuid())
+  code        String   @unique
   name        String
   description String
   maxCapacity Int
   basePrice   Int
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  rooms       Room[]
-  mealPlans   RoomTypeMealPlan[]
-
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  rooms     Room[]
+  mealPlans RoomTypeMealPlan[]
 }
 
 model MealPlan {
-  id         String             @id @default(cuid())
-  code       MealPlanCode       @unique
-  name       String
+  id   String       @id @default(cuid())
+  code MealPlanCode @unique
+  name String
 
   adultPrice Int
   childPrice Int
 
-  roomTypes  RoomTypeMealPlan[]
-  bookings   Booking[]
+  roomTypes RoomTypeMealPlan[]
+  bookings  Booking[]
 
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model RoomTypeMealPlan {
-  id         String    @id @default(cuid())
+  id         String @id @default(cuid())
   roomTypeId String
   mealPlanId String
 
-  roomType   RoomType  @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
-  mealPlan   MealPlan  @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  roomType RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
 
   @@unique([roomTypeId, mealPlanId])
 }
 
 model Room {
-  id         String      @id @default(cuid())
-  number     String      @unique
-  floor      Int
-  status     RoomStatus  @default(available)
+  id     String     @id @default(cuid())
+  number String     @unique
+  floor  Int
+  status RoomStatus @default(available)
 
   roomTypeId String
-  roomType   RoomType    @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
 
-  bookings   Booking[]
+  bookings Booking[]
 
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Booking {
-  id             String         @id @default(cuid())
+  id String @id @default(cuid())
 
-  roomId         String
-  mealPlanId     String?
+  bookingGroupId String?
 
-  room           Room           @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  mealPlan       MealPlan?      @relation(fields: [mealPlanId], references: [id], onDelete: Restrict)
+  roomId     String
+  mealPlanId String?
 
-  startDate      DateTime
-  endDate        DateTime
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  mealPlan MealPlan? @relation(fields: [mealPlanId], references: [id], onDelete: Restrict)
 
-  // ✅ NOUVELLE LOGIQUE
-  persons        Int
-  adultMeals     Int
-  childMeals     Int
+  startDate DateTime
+  endDate   DateTime
 
-  status         BookingStatus  @default(confirmed)
+  persons    Int
+  adultMeals Int
+  childMeals Int
 
-  guestName      String
-  guestEmail     String
-  notes          String?
+  status BookingStatus @default(confirmed)
 
-  roomPrice      Int
-  mealPlanPrice  Int
-  totalPrice     Int
+  guestName  String
+  guestEmail String
+  guestPhone String?
+  notes      String?
 
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  bookingSource BookingSource @default(admin_manual)
+  paymentStatus PaymentStatus @default(unpaid)
+  paymentNote   String?
+
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+
+  roomPrice     Int
+  mealPlanPrice Int
+  totalPrice    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bookingGroupId])
+}
+
+model Invoice {
+  id String @id @default(cuid())
+
+  number         String @unique
+  bookingGroupId String @unique
+
+  stripePaymentIntentId String?
+
+  guestName  String
+  guestEmail String
+
+  totalPrice Int
+
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([number])
+  @@index([stripePaymentIntentId])
 }
 
 model AdminUser {
@@ -130,4 +165,23 @@ model AdminUser {
   role         String   @default("owner")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model SystemLog {
+  id String @id @default(cuid())
+
+  level   SystemLogLevel @default(info)
+  type    String
+  message String
+
+  bookingId String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+}
+
+enum SystemLogLevel {
+  info
+  warn
+  error
 }

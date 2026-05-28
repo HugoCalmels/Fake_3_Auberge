@@ -13,11 +13,16 @@ export function removeStoredAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_KEY);
 }
 
-export function getAdminAuthHeaders() {
+export function getAdminAuthHeaders(withJson = true) {
   const token = getStoredAdminToken();
 
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+  const headers: Record<string, string> = {
+    ...(withJson ? { "Content-Type": "application/json" } : {}),
   };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
 }

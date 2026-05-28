@@ -1,5 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { MealPlanCode, RoomTypeCode } from '../../generated/prisma/enums';
+import {
+  BookingSource,
+  BookingStatus,
+  MealPlanCode,
+  PaymentStatus,
+  RoomStatus,
+} from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { GetBookingAvailabilityDto } from './dto/get-booking-availability.dto';
@@ -28,11 +34,15 @@ export class BookingsService {
       include: {
         rooms: {
           where: {
-            status: 'available',
+            status: RoomStatus.available,
             bookings: {
               none: {
                 status: {
-                  in: ['pending', 'confirmed', 'checked_in'],
+                  in: [
+                    BookingStatus.pending,
+                    BookingStatus.confirmed,
+                    BookingStatus.checked_in,
+                  ],
                 },
                 startDate: { lt: end },
                 endDate: { gt: start },
@@ -64,6 +74,7 @@ export class BookingsService {
           description: roomType.description,
           maxCapacity: roomType.maxCapacity,
           basePrice: roomType.basePrice,
+          imageUrl: roomType.imageUrl,
           availableRooms: roomType.rooms.length,
           mealPlans: roomType.mealPlans.map((link) => ({
             id: link.mealPlan.id,
@@ -77,7 +88,21 @@ export class BookingsService {
   }
 
   async createBooking(dto: CreateBookingDto) {
-    const { startDate, endDate, guestName, guestEmail, selections } = dto;
+    const result = await this.createPendingWebsiteBooking(dto);
+
+    return {
+      success: true,
+      message: 'Réservation créée en attente de paiement.',
+      bookingIds: result.bookingIds,
+      roomIds: result.roomIds,
+      selectionCount: result.selectionCount,
+      pricing: result.pricing,
+    };
+  }
+
+  async createPendingWebsiteBooking(dto: CreateBookingDto) {
+    const { startDate, endDate, guestName, guestEmail, guestPhone, selections } =
+      dto;
 
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -97,12 +122,14 @@ export class BookingsService {
     }
 
     const nights = this.getNights(start, end);
+    const bookingGroupId = crypto.randomUUID();
 
     const result = await this.prisma.$transaction(async (tx) => {
       const normalizedGuestName = guestName.trim();
       const normalizedGuestEmail = guestEmail.trim().toLowerCase();
+      const normalizedGuestPhone = guestPhone?.trim() || null;
 
-      const groupedSelections = new Map<RoomTypeCode, typeof selections>();
+      const groupedSelections = new Map<string, typeof selections>();
 
       for (const selection of selections) {
         const key = selection.roomTypeId;
@@ -128,16 +155,16 @@ export class BookingsService {
         }
       >();
 
-      for (const [roomTypeCode, grouped] of groupedSelections.entries()) {
-        const roomType = await tx.roomType.findFirst({
+      for (const [roomTypeId, grouped] of groupedSelections.entries()) {
+        const roomType = await tx.roomType.findUnique({
           where: {
-            code: roomTypeCode,
+            id: roomTypeId,
           },
         });
 
         if (!roomType) {
           throw new BadRequestException(
-            `Type de chambre introuvable: ${roomTypeCode}`,
+            `Type de chambre introuvable: ${roomTypeId}`,
           );
         }
 
@@ -185,11 +212,15 @@ export class BookingsService {
         const availableRooms = await tx.room.findMany({
           where: {
             roomTypeId: roomType.id,
-            status: 'available',
+            status: RoomStatus.available,
             bookings: {
               none: {
                 status: {
-                  in: ['pending', 'confirmed', 'checked_in'],
+                  in: [
+                    BookingStatus.pending,
+                    BookingStatus.confirmed,
+                    BookingStatus.checked_in,
+                  ],
                 },
                 startDate: { lt: end },
                 endDate: { gt: start },
@@ -212,10 +243,10 @@ export class BookingsService {
           );
         }
 
-        allocatedRoomsByType.set(roomTypeCode, {
+        allocatedRoomsByType.set(roomTypeId, {
           roomType: {
             id: roomType.id,
-            code: roomType.code as unknown as string,
+            code: roomType.code,
             name: roomType.name,
             maxCapacity: roomType.maxCapacity,
             basePrice: roomType.basePrice,
@@ -270,16 +301,28 @@ export class BookingsService {
 
         const booking = await tx.booking.create({
           data: {
+            bookingGroupId,
+
             roomId: room.id,
             mealPlanId: mealPlan.id,
+
             startDate: start,
             endDate: end,
+
             persons,
             adultMeals,
             childMeals,
+
+            status: BookingStatus.pending,
+
             guestName: normalizedGuestName,
             guestEmail: normalizedGuestEmail,
-            status: 'confirmed',
+            guestPhone: normalizedGuestPhone,
+
+            bookingSource: BookingSource.website,
+            paymentStatus: PaymentStatus.unpaid,
+            paymentNote: `Réservation web en attente de paiement · Groupe ${bookingGroupId}`,
+
             roomPrice,
             mealPlanPrice,
             totalPrice,
@@ -312,20 +355,30 @@ export class BookingsService {
       );
 
       return {
+        bookingGroupId,
         bookingIds: createdBookings.map((booking) => booking.id),
         roomIds: createdBookings.map((booking) => booking.roomId),
+        selectionCount: selections.length,
         pricing,
       };
     });
 
-    return {
-      success: true,
-      message: 'Réservation créée.',
-      bookingIds: result.bookingIds,
-      roomIds: result.roomIds,
-      selectionCount: selections.length,
-      pricing: result.pricing,
-    };
+    return result;
+  }
+
+  async getPublicRoomTypes() {
+    return this.prisma.roomType.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
+        maxCapacity: true,
+        basePrice: true,
+        imageUrl: true,
+      },
+    });
   }
 
   private getNights(start: Date, end: Date) {

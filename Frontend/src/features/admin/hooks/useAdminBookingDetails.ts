@@ -9,46 +9,72 @@ import {
   updateAdminBooking,
 } from "@/features/admin/api/adminBookings.api";
 import { sortRooms } from "@/features/admin/lib/admin-utils";
-import type { AdminBookingDetailDto, AdminRoomDto } from "@/features/admin/types";
+import type { MealPlanCode } from "@/features/booking/api/bookings.api";
+import type {
+  AdminBookingDetailDto,
+  AdminBookingStatus,
+  AdminPaymentStatus,
+  AdminRoomDto,
+} from "@/features/admin/types";
 
-export function useAdminBookingDetails(bookingId: string, rooms: AdminRoomDto[]) {
+export function useAdminBookingDetails(
+  bookingId: string,
+  rooms: AdminRoomDto[],
+) {
   const [booking, setBooking] = useState<AdminBookingDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [adults, setAdults] = useState("1");
   const [children, setChildren] = useState("0");
   const [notes, setNotes] = useState("");
+
+  const [status, setStatus] = useState<AdminBookingStatus>("confirmed");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [paymentStatus, setPaymentStatus] =
+    useState<AdminPaymentStatus>("unpaid");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [mealPlanCode, setMealPlanCode] = useState<MealPlanCode>("room_only");
+
   const [newRoomId, setNewRoomId] = useState("");
 
   useEffect(() => {
+    if (!bookingId) return;
+
     async function loadBooking() {
       setLoading(true);
       setError("");
 
       try {
         const data = await getAdminBookingById(bookingId);
+
         setBooking(data);
         setStartDate(toInputDate(data.startDate));
         setEndDate(toInputDate(data.endDate));
         setAdults(String(data.adults));
         setChildren(String(data.children));
         setNotes(data.notes ?? "");
+        setStatus(data.status ?? "confirmed");
+        setGuestPhone(data.guestPhone ?? "");
+        setPaymentStatus(data.paymentStatus ?? "unpaid");
+        setPaymentNote(data.paymentNote ?? "");
+        setMealPlanCode(data.mealPlanCode ?? "room_only");
         setNewRoomId(data.roomId);
       } catch (err) {
         setError(
           err instanceof Error
             ? err.message
-            : "Impossible de charger la reservation.",
+            : "Impossible de charger la réservation.",
         );
       } finally {
         setLoading(false);
       }
     }
 
-    loadBooking();
+    void loadBooking();
   }, [bookingId]);
 
   const sortedRooms = useMemo(() => [...rooms].sort(sortRooms), [rooms]);
@@ -68,11 +94,13 @@ export function useAdminBookingDetails(bookingId: string, rooms: AdminRoomDto[])
 
   const canEdit = useMemo(() => {
     if (!booking) return false;
-    return booking.status !== "cancelled" && booking.status !== "checked_out";
+    return booking.status !== "cancelled";
   }, [booking]);
 
-  async function save(onBookingUpdated: (booking: AdminBookingDetailDto) => Promise<void> | void) {
-    if (!booking || !canEdit) return false;
+  async function save(
+    onBookingUpdated: (booking: AdminBookingDetailDto) => Promise<void> | void,
+  ) {
+    if (!booking || booking.status === "cancelled") return false;
 
     setBusy(true);
     setError("");
@@ -84,16 +112,33 @@ export function useAdminBookingDetails(bookingId: string, rooms: AdminRoomDto[])
         adults: Number(adults),
         children: Number(children),
         notes: notes.trim() ? notes.trim() : undefined,
+        status,
+        guestPhone: guestPhone.trim() ? guestPhone.trim() : undefined,
+        paymentStatus,
+        paymentNote: paymentNote.trim() ? paymentNote.trim() : undefined,
+        mealPlanCode,
       });
 
       setBooking(updated);
+      setStartDate(toInputDate(updated.startDate));
+      setEndDate(toInputDate(updated.endDate));
+      setAdults(String(updated.adults));
+      setChildren(String(updated.children));
+      setNotes(updated.notes ?? "");
+      setStatus(updated.status ?? "confirmed");
+      setGuestPhone(updated.guestPhone ?? "");
+      setPaymentStatus(updated.paymentStatus ?? "unpaid");
+      setPaymentNote(updated.paymentNote ?? "");
+      setMealPlanCode(updated.mealPlanCode ?? "room_only");
+      setNewRoomId(updated.roomId);
+
       await onBookingUpdated(updated);
       return true;
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Impossible de modifier la reservation.",
+          : "Impossible de modifier la réservation.",
       );
       return false;
     } finally {
@@ -104,7 +149,7 @@ export function useAdminBookingDetails(bookingId: string, rooms: AdminRoomDto[])
   async function assignRoom(
     onBookingUpdated: (booking: AdminBookingDetailDto) => Promise<void> | void,
   ) {
-    if (!booking || !newRoomId || !canEdit) return false;
+    if (!booking || !newRoomId || booking.status === "cancelled") return false;
 
     setBusy(true);
     setError("");
@@ -115,13 +160,17 @@ export function useAdminBookingDetails(bookingId: string, rooms: AdminRoomDto[])
       });
 
       setBooking(updated);
+      setStatus(updated.status ?? "confirmed");
+      setNewRoomId(updated.roomId);
+      setMealPlanCode(updated.mealPlanCode ?? "room_only");
+
       await onBookingUpdated(updated);
       return true;
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Impossible de reassigner la chambre.",
+          : "Impossible de réassigner la chambre.",
       );
       return false;
     } finally {
@@ -145,13 +194,15 @@ export function useAdminBookingDetails(bookingId: string, rooms: AdminRoomDto[])
       };
 
       setBooking(merged);
+      setStatus(merged.status ?? "cancelled");
+
       await onBookingUpdated(merged);
       return true;
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Impossible d'annuler la reservation.",
+          : "Impossible d'annuler la réservation.",
       );
       return false;
     } finally {
@@ -167,18 +218,31 @@ export function useAdminBookingDetails(bookingId: string, rooms: AdminRoomDto[])
     sortedRooms,
     canCancel,
     canEdit,
+
     startDate,
     endDate,
     adults,
     children,
     notes,
+    status,
+    guestPhone,
+    paymentStatus,
+    paymentNote,
+    mealPlanCode,
     newRoomId,
+
     setStartDate,
     setEndDate,
     setAdults,
     setChildren,
     setNotes,
+    setStatus,
+    setGuestPhone,
+    setPaymentStatus,
+    setPaymentNote,
+    setMealPlanCode,
     setNewRoomId,
+
     save,
     assignRoom,
     cancel,

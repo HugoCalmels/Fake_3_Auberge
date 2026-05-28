@@ -5,10 +5,15 @@ import BookingStepBar from "./BookingStepBar";
 import BookingDateStep from "./BookingDateStep";
 import BookingPaymentStep from "./BookingPaymentStep";
 import BookingRoomsStep from "./BookingRoomStep";
+import BookingSuccessStep from "./BookingSuccessStep";
 import { useBookingFlow } from "@/features/booking/hooks/useBookingFlow";
 import { formatShortDate } from "@/features/booking/booking.utils";
 
-export default function BookingModal({ closeBooking }: { closeBooking: () => void }) {
+export default function BookingModal({
+  closeBooking,
+}: {
+  closeBooking: () => void;
+}) {
   const {
     step,
     startDate,
@@ -22,67 +27,122 @@ export default function BookingModal({ closeBooking }: { closeBooking: () => voi
     selectedRooms,
     guestName,
     guestEmail,
+    guestPhone,
+    paymentMethod,
+    paymentSubmitTrigger,
+    paymentSuccessIntentId,
     submitError,
     isSubmitting,
     totalPrice,
-    primarySelectedRoom,
+    totalPersons,
     canGoNext,
+    canSubmit,
     setRoomTypeFilter,
     setGuestName,
     setGuestEmail,
+    setGuestPhone,
+    setPaymentMethod,
+    setPaymentReady,
     selectDate,
     addRoom,
     removeRoom,
     submitBooking,
+    handlePaymentSuccess,
+    handlePaymentError,
     goNext,
     goBack,
   } = useBookingFlow();
 
   const [visibleMonth, setVisibleMonth] = useState(() => {
-    const t = new Date();
-    return new Date(t.getFullYear(), t.getMonth(), 1);
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
   });
 
+  const isSuccessStep = step === 4;
+
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeBooking();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeBooking();
     };
+
     document.addEventListener("keydown", onKeyDown);
     document.body.style.overflow = "hidden";
+
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = "";
     };
   }, [closeBooking]);
 
-  const handlePrevMonth = () => setVisibleMonth((p) => new Date(p.getFullYear(), p.getMonth() - 1, 1));
-  const handleNextMonth = () => setVisibleMonth((p) => new Date(p.getFullYear(), p.getMonth() + 1, 1));
+  const handlePrevMonth = () => {
+    setVisibleMonth(
+      (previous) =>
+        new Date(previous.getFullYear(), previous.getMonth() - 1, 1),
+    );
+  };
+
+  const handleNextMonth = () => {
+    setVisibleMonth(
+      (previous) =>
+        new Date(previous.getFullYear(), previous.getMonth() + 1, 1),
+    );
+  };
+
   const handleToday = () => {
-    const t = new Date();
-    setVisibleMonth(new Date(t.getFullYear(), t.getMonth(), 1));
+    const today = new Date();
+    setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1));
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-[2px]" onClick={closeBooking}>
+    <div
+      className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-[2px]"
+      onClick={closeBooking}
+    >
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="w-[min(980px,94vw)] rounded-[28px] border border-[#d8d0c2] bg-[#f4f0e8] shadow-[0_24px_70px_rgba(0,0,0,0.22)]" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="w-[min(980px,94vw)] rounded-[28px] border border-[#d8d0c2] bg-[#f4f0e8] shadow-[0_24px_70px_rgba(0,0,0,0.22)]"
+          onClick={(event) => event.stopPropagation()}
+        >
           <div className="flex items-start justify-between border-b border-[#e1d9cd] px-6 py-5">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9a9184]">Réservation</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9a9184]">
+                Réservation
+              </p>
+
               <h2 className="mt-2 text-[24px] font-semibold leading-none text-[#1e1e1e]">
-                {step === 1 ? "1. Dates du séjour" : step === 2 ? "2. Chambres" : "3. Paiement"}
+                {step === 1
+                  ? "1. Dates du séjour"
+                  : step === 2
+                    ? "2. Chambres"
+                    : step === 3
+                      ? "3. Paiement"
+                      : "Réservation confirmée"}
               </h2>
             </div>
-            <button type="button" onClick={closeBooking} className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d0c3] text-[20px] leading-none text-[#2d2c29] transition hover:bg-[#ece6dc]" aria-label="Fermer">✕</button>
+
+            <button
+              type="button"
+              onClick={closeBooking}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d0c3] text-[20px] leading-none text-[#2d2c29] transition hover:bg-[#ece6dc]"
+              aria-label="Fermer"
+            >
+              ✕
+            </button>
           </div>
 
           <div className="px-6 pt-4">
-            <div className="mx-auto w-full max-w-[860px]"><BookingStepBar step={step} /></div>
+            <div className="mx-auto w-full max-w-[860px]">
+              {isSuccessStep ? (
+                <div className="h-[35px]" />
+              ) : (
+                <BookingStepBar step={step} />
+              )}
+            </div>
           </div>
 
           <div className="h-[640px] overflow-hidden px-6 py-5">
             <div className="mx-auto h-full w-full max-w-[860px]">
-              {step === 1 && (
+              {step === 1 ? (
                 <BookingDateStep
                   visibleMonth={visibleMonth}
                   startDate={startDate ?? ""}
@@ -93,14 +153,18 @@ export default function BookingModal({ closeBooking }: { closeBooking: () => voi
                   onToday={handleToday}
                   onSelectDate={selectDate}
                 />
-              )}
+              ) : null}
 
-              {step === 2 && (
+              {step === 2 ? (
                 <>
                   {isLoadingAvailability ? (
-                    <div className="rounded-[22px] border border-[#d8d0c2] bg-white p-5 text-[14px] text-[#5f584d] shadow-sm">Chargement des disponibilités...</div>
+                    <div className="rounded-[22px] border border-[#d8d0c2] bg-white p-5 text-[14px] text-[#5f584d] shadow-sm">
+                      Chargement des disponibilités...
+                    </div>
                   ) : availabilityError ? (
-                    <div className="rounded-[22px] border border-[#e6c8c8] bg-white p-5 text-[14px] text-[#8c3b3b] shadow-sm">{availabilityError}</div>
+                    <div className="rounded-[22px] border border-[#e6c8c8] bg-white p-5 text-[14px] text-[#8c3b3b] shadow-sm">
+                      {availabilityError}
+                    </div>
                   ) : (
                     <BookingRoomsStep
                       startDate={startDate ?? ""}
@@ -115,26 +179,51 @@ export default function BookingModal({ closeBooking }: { closeBooking: () => voi
                     />
                   )}
                 </>
-              )}
+              ) : null}
 
-              {step === 3 && (
-                <div className="space-y-4">
-                  {submitError ? <div className="rounded-[14px] border border-[#e6c8c8] bg-white px-4 py-3 text-[14px] text-[#8c3b3b]">{submitError}</div> : null}
+              {step === 3 ? (
+                <div className="h-full min-h-0">
+                  {submitError ? (
+                    <div className="mb-4 rounded-[14px] border border-[#e6c8c8] bg-white px-4 py-3 text-[14px] text-[#8c3b3b]">
+                      {submitError}
+                    </div>
+                  ) : null}
+
                   <BookingPaymentStep
                     startDate={startDate ?? ""}
                     endDate={endDate ?? ""}
                     nights={nights}
-                    selectedRoom={primarySelectedRoom}
-                    roomSubtotal={totalPrice}
-                    supplementsTotal={0}
+                    selectedRooms={selectedRooms}
+                    totalPersons={totalPersons}
                     totalPrice={totalPrice}
                     guestName={guestName}
                     guestEmail={guestEmail}
+                    guestPhone={guestPhone}
+                    paymentMethod={paymentMethod}
+                    paymentSubmitTrigger={paymentSubmitTrigger}
                     onGuestNameChange={setGuestName}
                     onGuestEmailChange={setGuestEmail}
+                    onGuestPhoneChange={setGuestPhone}
+                    onPaymentMethodChange={setPaymentMethod}
+                    onPaymentReadyChange={setPaymentReady}
+                    onPaymentSuccess={handlePaymentSuccess}
+                    onPaymentError={handlePaymentError}
                   />
                 </div>
-              )}
+              ) : null}
+
+              {step === 4 ? (
+                <BookingSuccessStep
+                  startDate={startDate ?? ""}
+                  endDate={endDate ?? ""}
+                  nights={nights}
+                  selectedRooms={selectedRooms}
+                  totalPersons={totalPersons}
+                  totalPrice={totalPrice}
+                  guestEmail={guestEmail}
+                  paymentIntentId={paymentSuccessIntentId}
+                />
+              ) : null}
             </div>
           </div>
 
@@ -142,20 +231,72 @@ export default function BookingModal({ closeBooking }: { closeBooking: () => voi
             <div className="min-w-0 flex-1 pr-4">
               {startDate && endDate && nights > 0 ? (
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] leading-6 text-[#4f4a43]">
-                  <span>Séjour : {formatShortDate(startDate)} → {formatShortDate(endDate)} · {nights} nuit{nights > 1 ? "s" : ""}</span>
+                  <span>
+                    Séjour : {formatShortDate(startDate)} →{" "}
+                    {formatShortDate(endDate)} · {nights} nuit
+                    {nights > 1 ? "s" : ""}
+                  </span>
+
                   <span className="text-[#a79d8d]">—</span>
-                  <span>Prix total : <span className="font-semibold text-[#1e1e1e]">{totalPrice} €</span></span>
+
+                  <span>
+                    Prix total :{" "}
+                    <span className="font-semibold text-[#1e1e1e]">
+                      {totalPrice} €
+                    </span>
+                  </span>
                 </div>
               ) : (
-                <span className="text-[14px] text-[#6c675f]">Sélectionnez vos dates pour continuer</span>
+                <span className="text-[14px] text-[#6c675f]">
+                  Sélectionnez vos dates pour continuer
+                </span>
               )}
             </div>
+
             <div className="flex shrink-0 items-center gap-3">
-              {step > 1 && <button type="button" onClick={goBack} className="rounded-xl border border-[#d8d0c2] bg-white px-5 py-3 text-sm font-medium text-[#314835] transition hover:bg-[#faf6ef]">Retour</button>}
-              {step < 3 ? (
-                <button type="button" onClick={goNext} disabled={!canGoNext || isLoadingAvailability} className="rounded-xl bg-[#314835] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2a3d2d] disabled:cursor-not-allowed disabled:opacity-60">{step === 1 && isLoadingAvailability ? "Chargement..." : "Continuer"}</button>
+              {isSuccessStep ? (
+                <button
+                  type="button"
+                  onClick={closeBooking}
+                  className="rounded-xl bg-[#314835] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2a3d2d]"
+                >
+                  Fermer
+                </button>
               ) : (
-                <button type="button" onClick={() => submitBooking(closeBooking)} disabled={!guestName || !guestEmail || isSubmitting || selectedRooms.length === 0} className="rounded-xl bg-[#314835] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2a3d2d] disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? "Envoi..." : "Payer"}</button>
+                <>
+                  {step > 1 ? (
+                    <button
+                      type="button"
+                      onClick={goBack}
+                      disabled={isSubmitting}
+                      className="rounded-xl border border-[#d8d0c2] bg-white px-5 py-3 text-sm font-medium text-[#314835] transition hover:bg-[#faf6ef] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Retour
+                    </button>
+                  ) : null}
+
+                  {step < 3 ? (
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      disabled={!canGoNext || isLoadingAvailability}
+                      className="rounded-xl bg-[#314835] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2a3d2d] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {step === 1 && isLoadingAvailability
+                        ? "Chargement..."
+                        : "Continuer"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={submitBooking}
+                      disabled={!canSubmit}
+                      className="rounded-xl bg-[#314835] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2a3d2d] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSubmitting ? "Paiement..." : "Payer"}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

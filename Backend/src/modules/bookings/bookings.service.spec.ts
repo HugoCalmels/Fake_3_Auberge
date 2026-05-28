@@ -28,7 +28,16 @@ describe('BookingsService', () => {
           maxCapacity: 2,
           basePrice: 85,
         }),
+
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'rt_1',
+          code: 'double',
+          name: 'Chambre double',
+          maxCapacity: 2,
+          basePrice: 85,
+        }),
       },
+
       mealPlan: {
         findFirst: jest.fn().mockResolvedValue({
           id: 'mp_1',
@@ -38,11 +47,13 @@ describe('BookingsService', () => {
           childPrice: 12,
         }),
       },
+
       roomTypeMealPlan: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'link_1',
         }),
       },
+
       room: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -51,7 +62,10 @@ describe('BookingsService', () => {
           },
         ]),
       },
+
       booking: {
+        findFirst: jest.fn().mockResolvedValue(null),
+
         create: jest.fn().mockResolvedValue({
           id: 'booking_1',
           roomId: 'room_101',
@@ -96,20 +110,13 @@ describe('BookingsService', () => {
       },
     });
 
-    const bookingCreateCalls = tx.booking.create.mock.calls as [
-      [
-        {
-          data: {
-            guestEmail: string;
-            status: string;
-            totalPrice: number;
-          };
-        },
-      ],
-    ];
+    expect(tx.booking.create).toHaveBeenCalled();
 
-    expect(bookingCreateCalls[0][0].data.guestEmail).toBe('jean@example.com');
-    expect(bookingCreateCalls[0][0].data.status).toBe('confirmed');
-    expect(bookingCreateCalls[0][0].data.totalPrice).toBe(242);
+    const bookingCreateCall = tx.booking.create.mock.calls[0][0];
+
+    expect(bookingCreateCall.data.guestEmail).toBe('jean@example.com');
+    expect(bookingCreateCall.data.status).toBe('pending');
+    expect(bookingCreateCall.data.paymentStatus).toBe('unpaid');
+    expect(bookingCreateCall.data.totalPrice).toBe(242);
   });
 });

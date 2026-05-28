@@ -22,7 +22,7 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f4f0e8] px-6 pt-36 text-[#1e1e1e]">
+      <main className="min-h-screen bg-[#f2eadf] px-6 pt-36 text-[#1e1e1e]">
         <Navbar showBookingButton={false} />
         <div className="mx-auto max-w-7xl">Chargement...</div>
       </main>
@@ -31,11 +31,11 @@ export default function AdminPage() {
 
   if (!admin) {
     return (
-      <main className="min-h-screen bg-[#f4f0e8] px-6 pt-36 text-[#1e1e1e]">
+      <main className="min-h-screen bg-[#f2eadf] px-6 pt-36 text-[#1e1e1e]">
         <Navbar showBookingButton={false} />
         <div className="mx-auto flex min-h-[calc(100vh-9rem)] max-w-md items-center justify-center">
           <div className="w-full rounded-[28px] border border-[#d8d0c2] bg-white p-8 shadow-sm">
-            <h1 className="mb-2 text-3xl font-semibold text-[#1e1e1e]">Admin</h1>
+            <h1 className="mb-2 text-[2rem] font-semibold text-[#1e1e1e]">Admin</h1>
             <p className="mb-6 text-sm text-[#6c675f]">
               Connectez-vous pour acceder au dashboard.
             </p>
@@ -85,7 +85,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f0e8] px-6 pt-36 text-[#1e1e1e]">
+    <main className="min-h-screen bg-[#f2eadf] px-6 pt-36 text-[#1e1e1e]">
       <Navbar showBookingButton={false} />
       <div className="mx-auto max-w-7xl">
         <AdminReservationsWorkspace admin={admin} onLogout={signOut} />

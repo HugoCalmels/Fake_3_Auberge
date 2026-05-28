@@ -1,16 +1,24 @@
+import type { MealPlanCode } from "@/features/booking/api/bookings.api";
+
 export type AdminRoomStatus = "available" | "occupied" | "maintenance";
 
 export type AdminRoomTypeDto = {
   id: string;
   code: string;
   name: string;
-  capacity: number;
+  description: string;
+  maxCapacity: number;
+  basePrice: number;
+  imageUrl?: string | null;
 };
 
 export type CreateAdminRoomTypePayload = {
   code: string;
   name: string;
-  capacity: number;
+  description: string;
+  maxCapacity: number;
+  basePrice: number;
+  imageUrl?: string;
 };
 
 export type AdminRoomDto = {
@@ -26,7 +34,10 @@ export type AdminBookingStatus =
   | "confirmed"
   | "checked_in"
   | "checked_out"
+  | "no_show"
   | "cancelled";
+
+export type AdminPaymentStatus = "unpaid" | "paid";
 
 export type AdminBookingDto = {
   id: string;
@@ -35,6 +46,7 @@ export type AdminBookingDto = {
   roomTypeName?: string;
   guestName: string;
   guestEmail: string;
+  guestPhone?: string | null;
   startDate: string;
   endDate: string;
   adults: number;
@@ -43,21 +55,65 @@ export type AdminBookingDto = {
   createdAt?: string;
   updatedAt?: string;
   notes?: string | null;
+  paymentStatus?: AdminPaymentStatus;
+  paymentNote?: string | null;
 };
 
-export type AdminBookingDetailDto = AdminBookingDto & {
+export type AdminBookingDetailDto = {
+  id: string;
+  roomId: string;
+  roomNumber: string;
+  roomTypeName?: string;
+  guestName: string;
+  guestEmail: string;
+  guestPhone?: string | null;
+  startDate: string;
+  endDate: string;
+  adults: number;
+  children: number;
+  status: AdminBookingStatus;
   notes?: string | null;
+  paymentStatus: AdminPaymentStatus;
+  paymentNote?: string | null;
+  mealPlanName?: string | null;
+  roomPrice?: number;
+  mealPlanPrice?: number;
+  totalPrice?: number;
+  mealPlanCode?: MealPlanCode | null;
+};
+
+export type CreateAdminBookingSelectionPayload = {
+  roomTypeId: string;
+  adults: number;
+  children: number;
+  mealPlanCode: MealPlanCode;
 };
 
 export type CreateAdminBookingPayload = {
   startDate: string;
   endDate: string;
-  adults: number;
-  children: number;
   guestName: string;
   guestEmail: string;
-  roomId: string;
+  guestPhone?: string;
   notes?: string;
+  paymentStatus: AdminPaymentStatus;
+  paymentNote?: string;
+  createdBy: "admin" | "visitor";
+  selections: CreateAdminBookingSelectionPayload[];
+};
+
+export type CreateAdminBookingResponse = {
+  success: boolean;
+  message: string;
+  bookingIds: string[];
+  roomIds: string[];
+  selectionCount: number;
+  pricing: {
+    nights: number;
+    roomPrice: number;
+    mealPlanPrice: number;
+    totalPrice: number;
+  };
 };
 
 export type UpdateAdminBookingPayload = {
@@ -65,7 +121,12 @@ export type UpdateAdminBookingPayload = {
   endDate: string;
   adults: number;
   children: number;
+  guestPhone?: string;
   notes?: string;
+  status?: AdminBookingStatus;
+  paymentStatus?: AdminPaymentStatus;
+  paymentNote?: string;
+  mealPlanCode?: MealPlanCode;
 };
 
 export type AssignAdminBookingRoomPayload = {
@@ -109,10 +170,29 @@ export type AdminPlanningResponse = {
 };
 
 export type AdminWorkspacePanel =
-  | "reservations-dashboard"
-  | "bookings-upcoming"
-  | "bookings-current"
-  | "bookings-history"
+  | "reservations-planning"
+  | "bookings-list"
   | "rooms"
   | "roomTypes"
-  | "stats";
+  | "stats"
+  | "system-logs";
+
+export type UpdateAdminRoomTypePayload = {
+  name?: string;
+  description?: string;
+  maxCapacity?: number;
+  basePrice?: number;
+  imageUrl?: string;
+};
+
+export type AdminSystemLogLevel = "info" | "warn" | "error";
+
+export type AdminSystemLogDto = {
+  id: string;
+  level: AdminSystemLogLevel;
+  type: string;
+  message: string;
+  bookingId?: string | null;
+  metadata?: unknown;
+  createdAt: string;
+};

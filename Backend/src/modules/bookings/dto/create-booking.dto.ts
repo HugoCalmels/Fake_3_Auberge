@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsIn,
   IsInt,
+  IsOptional,
   IsString,
   Min,
   MinLength,
@@ -13,8 +14,9 @@ import {
 import { Type } from 'class-transformer';
 
 export class CreateBookingSelectionDto {
-  @IsIn(['double', 'twin', 'quadruple', 'familiale', 'cinq_places'])
-  roomTypeId: 'double' | 'twin' | 'quadruple' | 'familiale' | 'cinq_places';
+  @IsString()
+  @MinLength(1)
+  roomTypeId: string;
 
   @IsInt()
   @Min(1)
@@ -41,6 +43,10 @@ export class CreateBookingDto {
 
   @IsEmail()
   guestEmail: string;
+
+  @IsOptional()
+  @IsString()
+  guestPhone?: string;
 
   @IsArray()
   @ArrayMinSize(1)

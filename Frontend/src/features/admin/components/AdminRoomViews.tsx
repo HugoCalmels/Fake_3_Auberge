@@ -7,12 +7,11 @@ import type {
   AdminRoomTypeDto,
 } from "@/features/admin/types";
 
-type AdminRoomsViewProps = {
+type Props = {
   rooms: AdminRoomDto[];
   roomTypes: AdminRoomTypeDto[];
   busy?: boolean;
   onAddRoom: (input: {
-    floor: number;
     number: string;
     roomTypeId: string;
     status: AdminRoomStatus;
@@ -20,7 +19,7 @@ type AdminRoomsViewProps = {
   onDeleteRoom: (roomId: string) => Promise<void>;
   onUpdateRoomStatus: (
     roomId: string,
-    status: AdminRoomStatus
+    status: AdminRoomStatus,
   ) => Promise<void>;
 };
 
@@ -31,13 +30,24 @@ export default function AdminRoomsView({
   onAddRoom,
   onDeleteRoom,
   onUpdateRoomStatus,
-}: AdminRoomsViewProps) {
-  const floors = useMemo(() => {
-    return [...new Set(rooms.map((room) => room.floor))].sort((a, b) => a - b);
+}: Props) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [error, setError] = useState("");
+
+  const sortedRooms = useMemo(() => {
+    return [...rooms].sort((a, b) =>
+      a.number.localeCompare(b.number, "fr", { numeric: true }),
+    );
   }, [rooms]);
 
-  const [modalFloor, setModalFloor] = useState<number | null>(null);
-  const [error, setError] = useState("");
+  const stats = useMemo(() => {
+    return {
+      total: rooms.length,
+      available: rooms.filter((room) => room.status === "available").length,
+      maintenance: rooms.filter((room) => room.status === "maintenance")
+        .length,
+    };
+  }, [rooms]);
 
   async function safeAction(action: () => Promise<void>) {
     setError("");
@@ -45,59 +55,180 @@ export default function AdminRoomsView({
     try {
       await action();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Une erreur est survenue."
-      );
+      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     }
   }
 
   return (
     <>
-      <section>
-        <div className="mb-5">
-          <h2 className="text-2xl font-semibold text-[#1e1e1e]">Chambres</h2>
-          <p className="mt-1 text-sm text-[#6c675f]">
-            Gestion par étage, avec lecture simple et actions claires.
-          </p>
+      <section className="overflow-hidden rounded-[22px] border border-[#d8d0c2] bg-white shadow-sm">
+        <div className="border-b border-[#ece5d8] px-5 py-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-[#1e1e1e]">
+                Chambres
+              </h2>
+              <p className="mt-2 max-w-[640px] text-sm leading-6 text-[#6c675f]">
+                Gère l’inventaire des chambres physiques : numéro, type
+                commercial et état technique.
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                <span className="rounded-full border border-[#d8d0c2] bg-[#fcfaf7] px-3 py-1 text-[#6c675f]">
+                  {stats.total} chambre{stats.total > 1 ? "s" : ""}
+                </span>
+                <span className="rounded-full border border-[#0B8043]/20 bg-[#0B8043]/5 px-3 py-1 text-[#0B8043]">
+                  {stats.available} active{stats.available > 1 ? "s" : ""}
+                </span>
+                <span className="rounded-full border border-[#F6BF26]/30 bg-[#F6BF26]/10 px-3 py-1 text-[#7A5A00]">
+                  {stats.maintenance} maintenance
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={busy || roomTypes.length === 0}
+              onClick={() => setCreateOpen(true)}
+              className="w-fit cursor-pointer rounded-xl bg-[#314835] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#3b563f] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Ajouter une chambre
+            </button>
+          </div>
+
+          {error ? (
+            <div className="mt-4 rounded-xl border border-[#B91C1C]/30 bg-[#B91C1C]/10 px-4 py-3 text-sm text-[#B91C1C]">
+              {error}
+            </div>
+          ) : null}
         </div>
 
-        {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
+        {!sortedRooms.length ? (
+          <div className="px-5 py-8 text-sm text-[#6c675f]">
+            Aucune chambre créée.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-left">
+              <thead>
+                <tr className="border-b border-[#ece5d8] bg-[#fcfaf7]">
+                  <TableHead>Chambre</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Capacité</TableHead>
+                  <TableHead>Prix</TableHead>
+                  <TableHead>État technique</TableHead>
+                  <TableHead align="right">Actions</TableHead>
+                </tr>
+              </thead>
 
-        <div className="space-y-8">
-          {floors.map((floor) => {
-            const floorRooms = rooms
-              .filter((room) => room.floor === floor)
-              .sort((a, b) => a.number.localeCompare(b.number));
+              <tbody>
+                {sortedRooms.map((room) => {
+                  const roomType = roomTypes.find(
+                    (type) => type.id === room.roomTypeId,
+                  );
+                  const statusConfig = getStatusConfig(room.status);
 
-            return (
-              <FloorSection
-                key={floor}
-                floor={floor}
-                rooms={floorRooms}
-                roomTypes={roomTypes}
-                busy={busy}
-                onOpenAddRoom={() => setModalFloor(floor)}
-                onDeleteRoom={(roomId) =>
-                  safeAction(() => onDeleteRoom(roomId))
-                }
-                onUpdateRoomStatus={(roomId, status) =>
-                  safeAction(() => onUpdateRoomStatus(roomId, status))
-                }
-              />
-            );
-          })}
-        </div>
+                  return (
+                    <tr
+                      key={room.id}
+                      className={`border-b border-[#ece5d8] transition hover:bg-[#fcfaf7] ${statusConfig.row}`}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[15px] text-[#8a847b]">#</span>
+                          <span className="text-base font-semibold text-[#1e1e1e]">
+                            {room.number}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="max-w-[260px] truncate text-sm font-medium text-[#1e1e1e]">
+                          {roomType?.name ?? "Type inconnu"}
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="text-sm text-[#6c675f]">
+                          {roomType ? `${roomType.maxCapacity} pers.` : "—"}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="text-sm text-[#6c675f]">
+                          {roomType ? `${roomType.basePrice} €/nuit` : "—"}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <StatusBadge status={room.status} />
+                      </TableCell>
+
+                      <TableCell align="right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {room.status !== "available" ? (
+                            <IconActionButton
+                              label="Activer"
+                              disabled={busy}
+                              onClick={() =>
+                                safeAction(() =>
+                                  onUpdateRoomStatus(room.id, "available"),
+                                )
+                              }
+                            >
+                              ✓
+                            </IconActionButton>
+                          ) : null}
+
+                          {room.status !== "maintenance" ? (
+                            <IconActionButton
+                              label="Mettre en maintenance"
+                              disabled={busy}
+                              onClick={() =>
+                                safeAction(() =>
+                                  onUpdateRoomStatus(room.id, "maintenance"),
+                                )
+                              }
+                            >
+                              ⚙
+                            </IconActionButton>
+                          ) : null}
+
+                          <IconActionButton
+                            label="Supprimer"
+                            danger
+                            disabled={busy}
+                            onClick={() => {
+                              const confirmed = window.confirm(
+                                "Supprimer cette chambre ?",
+                              );
+
+                              if (!confirmed) return;
+
+                              void safeAction(() => onDeleteRoom(room.id));
+                            }}
+                          >
+                            ×
+                          </IconActionButton>
+                        </div>
+                      </TableCell>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
-      {modalFloor !== null ? (
+      {createOpen ? (
         <AddRoomModal
-          floor={modalFloor}
           roomTypes={roomTypes}
           busy={busy}
-          onClose={() => setModalFloor(null)}
+          onClose={() => setCreateOpen(false)}
           onSubmit={async (input) => {
             await safeAction(() => onAddRoom(input));
-            setModalFloor(null);
+            setCreateOpen(false);
           }}
         />
       ) : null}
@@ -105,203 +236,16 @@ export default function AdminRoomsView({
   );
 }
 
-function FloorSection({
-  floor,
-  rooms,
-  roomTypes,
-  busy,
-  onOpenAddRoom,
-  onDeleteRoom,
-  onUpdateRoomStatus,
-}: {
-  floor: number;
-  rooms: AdminRoomDto[];
-  roomTypes: AdminRoomTypeDto[];
-  busy: boolean;
-  onOpenAddRoom: () => void;
-  onDeleteRoom: (roomId: string) => Promise<void>;
-  onUpdateRoomStatus: (roomId: string, status: AdminRoomStatus) => Promise<void>;
-}) {
-  return (
-    <div className="overflow-hidden rounded-[16px] border border-[#d8d0c2] bg-white shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-[#e6dfd3] px-5 py-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h3 className="text-xl font-semibold text-[#1e1e1e]">Étage {floor}</h3>
-          <p className="text-sm text-[#6c675f]">
-            {rooms.length} chambre{rooms.length > 1 ? "s" : ""}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={onOpenAddRoom}
-          disabled={busy}
-          className="w-fit cursor-pointer rounded-full border border-[#314835] px-4 py-2 text-sm font-semibold text-[#314835] transition hover:bg-[#314835] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Ajouter une chambre
-        </button>
-      </div>
-
-      <div className="hidden grid-cols-[115px_1.1fr_110px_160px_1.5fr] border-b border-[#e6dfd3] bg-[#f5f0e7] px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#756f67] md:grid">
-        <div>Chambre</div>
-        <div>Type</div>
-        <div>Capacité</div>
-        <div>Statut</div>
-        <div className="text-center">Actions</div>
-      </div>
-
-      <div className="divide-y divide-[#e6dfd3]">
-        {rooms.map((room) => {
-          const roomType = roomTypes.find((type) => type.id === room.roomTypeId);
-
-          return (
-            <div
-              key={room.id}
-              className="grid gap-4 px-5 py-4 md:grid-cols-[115px_1.1fr_110px_160px_1.5fr] md:items-center"
-            >
-              <InfoCell label="Chambre" value={room.number} strong />
-              <InfoCell label="Type" value={roomType?.name ?? "—"} />
-              <InfoCell label="Capacité" value={String(roomType?.capacity ?? "—")} />
-
-              <div>
-                <div className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8a847b] md:hidden">
-                  Statut
-                </div>
-                <StatusCell status={room.status} />
-              </div>
-
-              <div className="flex h-full items-center justify-center">
-                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
-                  {room.status !== "available" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => onUpdateRoomStatus(room.id, "available")}
-                      className="cursor-pointer font-medium text-[#314835] underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Marquer disponible
-                    </button>
-                  ) : null}
-
-                  {room.status !== "occupied" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => onUpdateRoomStatus(room.id, "occupied")}
-                      className="cursor-pointer font-medium text-[#314835] underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Marquer occupée
-                    </button>
-                  ) : null}
-
-                  {room.status !== "maintenance" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => onUpdateRoomStatus(room.id, "maintenance")}
-                      className="cursor-pointer font-medium text-[#314835] underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Passer en maintenance
-                    </button>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => onDeleteRoom(room.id)}
-                    className="cursor-pointer font-medium text-red-700 underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function InfoCell({
-  label,
-  value,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-}) {
-  return (
-    <div>
-      <div className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8a847b]">
-        {label}
-      </div>
-      <div
-        className={
-          strong
-            ? "text-[2rem] font-semibold leading-none text-[#1e1e1e]"
-            : "text-base text-[#1e1e1e]"
-        }
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function StatusCell({ status }: { status: AdminRoomStatus }) {
-  const label = formatStatus(status);
-  const classes = getStatusClasses(status);
-
-  return (
-    <div
-      className={`inline-flex min-w-[132px] items-center justify-center rounded-full border px-3 py-2 text-sm font-semibold ${classes}`}
-    >
-      {label}
-    </div>
-  );
-}
-
-function getStatusClasses(status: AdminRoomStatus) {
-  switch (status) {
-    case "available":
-      return "border-[#bfd5c4] bg-[#e7f3ea] text-[#22422a]";
-    case "occupied":
-      return "border-[#e2d5b8] bg-[#f7f0de] text-[#6b5423]";
-    case "maintenance":
-      return "border-[#e2c1c1] bg-[#f8e6e6] text-[#7b2d2d]";
-    default:
-      return "border-[#d8d0c2] bg-white text-[#1e1e1e]";
-  }
-}
-
-function formatStatus(status: AdminRoomStatus) {
-  switch (status) {
-    case "available":
-      return "Disponible";
-    case "occupied":
-      return "Occupée";
-    case "maintenance":
-      return "Maintenance";
-    default:
-      return status;
-  }
-}
-
 function AddRoomModal({
-  floor,
   roomTypes,
   busy,
   onClose,
   onSubmit,
 }: {
-  floor: number;
   roomTypes: AdminRoomTypeDto[];
   busy: boolean;
   onClose: () => void;
   onSubmit: (input: {
-    floor: number;
     number: string;
     roomTypeId: string;
     status: AdminRoomStatus;
@@ -311,13 +255,12 @@ function AddRoomModal({
   const [roomTypeId, setRoomTypeId] = useState(roomTypes[0]?.id ?? "");
   const [status, setStatus] = useState<AdminRoomStatus>("available");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
     if (!number.trim() || !roomTypeId) return;
 
     await onSubmit({
-      floor,
       number: number.trim(),
       roomTypeId,
       status,
@@ -325,76 +268,71 @@ function AddRoomModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-lg rounded-[18px] border border-[#d8d0c2] bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/30 px-4 py-6">
+      <div className="w-full max-w-[560px] rounded-[24px] border border-[#d8d0c2] bg-white p-6 shadow-2xl">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-2xl font-semibold text-[#1e1e1e]">
               Ajouter une chambre
             </h3>
-            <p className="mt-1 text-sm text-[#6c675f]">Étage {floor}</p>
+            <p className="mt-1 text-sm text-[#6c675f]">
+              Crée une chambre physique liée à un type commercial.
+            </p>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer rounded-full border border-[#d8d0c2] px-4 py-2 text-sm text-[#1e1e1e]"
+            className="cursor-pointer rounded-xl border border-[#d8d0c2] px-4 py-2 text-sm font-medium text-[#314835] transition hover:bg-[#faf6ef]"
           >
             Fermer
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-[#1e1e1e]">
-              Numéro de chambre
-            </label>
+          <Field label="Numéro de chambre">
             <input
               value={number}
-              onChange={(e) => setNumber(e.target.value)}
-              placeholder="204"
-              className="w-full rounded-xl border border-[#d8d0c2] bg-white px-3 py-2.5"
+              onChange={(event) => setNumber(event.target.value)}
+              placeholder="101"
               required
+              className="w-full rounded-xl border border-[#d8d0c2] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#314835] focus:ring-4 focus:ring-[#314835]/10"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-[#1e1e1e]">
-              Type de chambre
-            </label>
+          <Field label="Type de chambre">
             <select
               value={roomTypeId}
-              onChange={(e) => setRoomTypeId(e.target.value)}
-              className="w-full rounded-xl border border-[#d8d0c2] bg-white px-3 py-2.5"
+              onChange={(event) => setRoomTypeId(event.target.value)}
+              required
+              className="w-full rounded-xl border border-[#d8d0c2] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#314835] focus:ring-4 focus:ring-[#314835]/10"
             >
               {roomTypes.map((type) => (
                 <option key={type.id} value={type.id}>
-                  {type.name} — {type.capacity} pers.
+                  {type.name} · {type.maxCapacity} pers. · {type.basePrice} €
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-[#1e1e1e]">
-              Statut initial
-            </label>
+          <Field label="État technique initial">
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as AdminRoomStatus)}
-              className="w-full rounded-xl border border-[#d8d0c2] bg-white px-3 py-2.5"
+              onChange={(event) =>
+                setStatus(event.target.value as AdminRoomStatus)
+              }
+              className="w-full rounded-xl border border-[#d8d0c2] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#314835] focus:ring-4 focus:ring-[#314835]/10"
             >
-              <option value="available">Disponible</option>
-              <option value="occupied">Occupée</option>
+              <option value="available">Active</option>
               <option value="maintenance">Maintenance</option>
             </select>
-          </div>
+          </Field>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer rounded-xl border border-[#d8d0c2] px-4 py-2.5 text-sm font-medium text-[#1e1e1e]"
+              className="cursor-pointer rounded-xl border border-[#d8d0c2] px-4 py-2.5 text-sm font-medium text-[#314835] transition hover:bg-[#faf6ef]"
             >
               Annuler
             </button>
@@ -402,13 +340,128 @@ function AddRoomModal({
             <button
               type="submit"
               disabled={busy}
-              className="cursor-pointer rounded-xl bg-[#314835] px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="cursor-pointer rounded-xl bg-[#314835] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#3b563f] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busy ? "Ajout..." : "Ajouter la chambre"}
+              {busy ? "Ajout..." : "Ajouter"}
             </button>
           </div>
         </form>
       </div>
     </div>
+  );
+}
+
+function TableHead({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <th
+      className={`px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a847b] ${
+        align === "right" ? "text-right" : "text-left"
+      }`}
+    >
+      {children}
+    </th>
+  );
+}
+
+function TableCell({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+}) {
+  return (
+    <td
+      className={`px-5 py-3 align-middle ${
+        align === "right" ? "text-right" : "text-left"
+      }`}
+    >
+      {children}
+    </td>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-[#1e1e1e]">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function StatusBadge({ status }: { status: AdminRoomStatus }) {
+  const config = getStatusConfig(status);
+
+  return (
+    <span
+      className={`inline-flex w-fit items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium ${config.classes}`}
+    >
+      <span className={`h-2 w-2 rounded-full ${config.dot}`} />
+      {config.label}
+    </span>
+  );
+}
+
+function getStatusConfig(status: AdminRoomStatus) {
+  if (status === "maintenance") {
+    return {
+      label: "Maintenance",
+      classes: "border-[#F6BF26]/40 bg-[#F6BF26]/10 text-[#7A5A00]",
+      dot: "bg-[#F6BF26]",
+      row: "bg-[#F6BF26]/[0.06]",
+    };
+  }
+
+  return {
+    label: "Active",
+    classes: "border-[#0B8043]/30 bg-[#0B8043]/10 text-[#0B8043]",
+    dot: "bg-[#0B8043]",
+    row: "bg-[#0B8043]/[0.04]",
+  };
+}
+
+function IconActionButton({
+  children,
+  label,
+  danger = false,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  danger?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+        danger
+          ? "border-[#B91C1C]/40 text-[#B91C1C] hover:bg-[#B91C1C]/10"
+          : "border-[#d8d0c2] text-[#314835] hover:bg-[#faf6ef]"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

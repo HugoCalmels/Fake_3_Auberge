@@ -24,6 +24,7 @@ export default function BookingDateStep({
   onSelectDate,
 }: Props) {
   const days = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
+  const today = useMemo(() => stripTime(new Date()), []);
 
   return (
     <div className="w-full rounded-[22px] border border-[#d8d0c2] bg-white shadow-sm">
@@ -86,7 +87,11 @@ export default function BookingDateStep({
 
             {days.map((day) => {
               const value = toInputDate(day);
+              const currentDay = stripTime(day);
+
               const isCurrentMonth = day.getMonth() === visibleMonth.getMonth();
+              const isPast = currentDay < today;
+              const isToday = currentDay.getTime() === today.getTime();
               const isSelectedStart = value === startDate;
               const isSelectedEnd = value === endDate;
               const isInRange =
@@ -102,16 +107,21 @@ export default function BookingDateStep({
                 >
                   <button
                     type="button"
+                    disabled={isPast}
                     onClick={() => onSelectDate(value)}
                     className={[
                       "flex h-12 w-12 items-center justify-center rounded-full text-[18px] transition",
                       isSelectedStart || isSelectedEnd
                         ? "bg-[#314835] font-semibold text-white"
-                        : isInRange
-                          ? "bg-[#dfeadf] text-[#1e1e1e]"
-                          : isCurrentMonth
-                            ? "text-[#1e1e1e] hover:bg-[#f3f5ef]"
-                            : "text-[#c1baad]",
+                        : isPast
+                          ? "cursor-not-allowed bg-[#dfeadf]/45 text-[#314835]/35"
+                          : isInRange
+                            ? "bg-[#dfeadf] text-[#1e1e1e]"
+                            : isToday
+                              ? "border border-[#314835]/35 bg-[#f3f8f3] font-semibold text-[#314835] hover:bg-[#e7f3ea]"
+                              : isCurrentMonth
+                                ? "text-[#1e1e1e] hover:bg-[#f3f5ef]"
+                                : "text-[#c1baad]",
                     ].join(" ")}
                   >
                     {day.getDate()}
@@ -154,6 +164,10 @@ function toInputDate(d: Date) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 10);
+}
+
+function stripTime(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function formatHumanDate(value: string) {

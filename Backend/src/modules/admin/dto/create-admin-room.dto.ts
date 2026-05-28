@@ -1,18 +1,18 @@
-import { IsInt, IsString, Min, MinLength, IsIn } from 'class-validator';
+import { IsIn, IsInt, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateAdminRoomDto {
   @IsString()
   @MinLength(1)
-  number: string;
+  number!: string;
 
   @IsInt()
   @Min(0)
-  floor: number;
+  floor!: number;
 
   @IsString()
   @MinLength(1)
-  roomTypeId: string;
+  roomTypeId!: string;
 
   @IsIn(['available', 'occupied', 'maintenance'])
-  status: 'available' | 'occupied' | 'maintenance';
+  status!: 'available' | 'occupied' | 'maintenance';
 }

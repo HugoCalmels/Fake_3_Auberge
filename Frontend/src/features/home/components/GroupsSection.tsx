@@ -1,46 +1,60 @@
-export default function GroupsSection() {
+type GroupsSectionProps = {
+  keepNavbarVisible: () => void;
+};
+
+export default function GroupsSection({
+  keepNavbarVisible,
+}: GroupsSectionProps) {
   return (
-    <section
-      id="groupes"
-      className="mx-auto max-w-[980px] px-4 py-24 sm:px-6 lg:px-8"
-    >
-      <div className="text-center">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-[#8c7b5d]">
-          Groupes
-        </p>
+    <section id="groupes" className="bg-[#314835]">
+      <div className="mx-auto max-w-[1280px] px-4 pt-24 pb-20 sm:px-6 lg:px-8 lg:pt-28 lg:pb-24">
+        <div className="max-w-[860px]">
+          <h2 className="!text-[#f4efe7] text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-5xl">
+            Groupes
+          </h2>
 
-        <h2 className="text-3xl font-semibold tracking-tight text-[#2d2c29] sm:text-4xl">
-          Un lieu adapté aux séjours en groupe, aux évènements familiaux et aux
-          temps professionnels
-        </h2>
-      </div>
+          <div className="mt-8 max-w-[760px] space-y-5 text-[17px] leading-8 text-[#e4dbcf]">
+            <p>
+              L’auberge accueille les familles, groupes, randonneurs et sportifs
+              dans un environnement calme, accessible et proche de la nature.
+            </p>
 
-      <div className="mx-auto mt-10 max-w-[820px] space-y-6 text-[15px] leading-8 text-[#5f5a52] sm:text-base">
-        <p>
-          Située à 1h30 de Toulouse et à 15 minutes de Tarascon, l’Auberge du
-          Montcalm est un lieu idéal pour les familles en week-end, lors d’un
-          séjour de détente ou pour célébrer des anniversaires, des mariages ou
-          tout autre évènement familial.
-        </p>
+            <p>
+              Pour les{" "}
+              <strong className="font-semibold text-[#f4efe7]">
+                groupes à partir de 15 personnes
+              </strong>
+              , une proposition personnalisée peut être préparée selon la durée
+              du séjour, le nombre de participants et les besoins du groupe.
+            </p>
+          </div>
 
-        <p>
-          La structure est également adaptée aux évènements professionnels ou
-          associatifs, comme les séminaires, les formations ou les stages
-          sportifs.
-        </p>
+          <div className="mt-12 flex flex-wrap gap-3">
+            <InfoPill>Week-ends famille</InfoPill>
+            <InfoPill>Anniversaires & mariages</InfoPill>
+            <InfoPill>Stages sportifs</InfoPill>
+            <InfoPill>Séminaires</InfoPill>
+          </div>
 
-        <p>
-          L’auberge dispose de 20 chambres dotées de salles d’eau privatives,
-          d’une salle de restaurant d’une capacité de 60 places et d’une belle
-          terrasse avec vue sur le Montcalm.
-        </p>
-
-        <p>
-          Pour les groupes à partir de 15 personnes, il est possible de faire
-          une demande afin d’obtenir une proposition personnalisée selon la
-          durée du séjour et la formule choisie.
-        </p>
+          <div className="mt-10">
+            <a
+              href="#contact"
+              onClick={keepNavbarVisible}
+              className="inline-flex items-center rounded-full border border-[#d8d0c2]/30 bg-[#f4efe7] px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#314835] transition hover:bg-white"
+            >
+              Nous contacter
+            </a>
+          </div>
+        </div>
       </div>
     </section>
+  );
+}
+
+function InfoPill({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-medium text-[#f4efe7]">
+      {children}
+    </div>
   );
 }

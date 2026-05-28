@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
-import { createBooking, getBookingAvailability } from "@/features/booking/api/bookings.api";
+import {
+  getBookingAvailability,
+  type BookingPaymentMethod,
+} from "@/features/booking/api/bookings.api";
 import {
   DEFAULT_BOOKING_SEARCH,
   type RoomAvailability,
@@ -7,20 +10,36 @@ import {
 } from "@/features/booking/types";
 import { getNights } from "@/features/booking/lib/pricing";
 
-export type BookingStep = 1 | 2 | 3;
+export type BookingStep = 1 | 2 | 3 | 4;
 
 export function useBookingFlow() {
   const [step, setStep] = useState<BookingStep>(1);
-  const [startDate, setStartDate] = useState<string | null>(DEFAULT_BOOKING_SEARCH.startDate);
-  const [endDate, setEndDate] = useState<string | null>(DEFAULT_BOOKING_SEARCH.endDate);
+
+  const [startDate, setStartDate] = useState<string | null>(
+    DEFAULT_BOOKING_SEARCH.startDate,
+  );
+  const [endDate, setEndDate] = useState<string | null>(
+    DEFAULT_BOOKING_SEARCH.endDate,
+  );
+
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>("all");
   const [availability, setAvailability] = useState<RoomAvailability[]>([]);
   const [availabilityError, setAvailabilityError] = useState("");
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
 
   const [selectedRooms, setSelectedRooms] = useState<SelectedRoomLine[]>([]);
+
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+
+  const [paymentMethod, setPaymentMethod] =
+    useState<BookingPaymentMethod>("card");
+  const [paymentReady, setPaymentReady] = useState(false);
+  const [paymentSubmitTrigger, setPaymentSubmitTrigger] = useState(0);
+  const [paymentSuccessIntentId, setPaymentSuccessIntentId] = useState<
+    string | null
+  >(null);
 
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,13 +56,17 @@ export function useBookingFlow() {
 
   const roomTypeOptions = useMemo(() => {
     const unique = new Map<string, string>();
+
     for (const offer of availability) {
       unique.set(offer.code, offer.name);
     }
 
     return [
       { value: "all", label: "Toutes les chambres" },
-      ...Array.from(unique.entries()).map(([value, label]) => ({ value, label })),
+      ...Array.from(unique.entries()).map(([value, label]) => ({
+        value,
+        label,
+      })),
     ];
   }, [availability]);
 
@@ -51,25 +74,22 @@ export function useBookingFlow() {
     return selectedRooms.reduce((sum, room) => sum + room.totalPrice, 0);
   }, [selectedRooms]);
 
+  const totalPersons = useMemo(() => {
+    return selectedRooms.reduce((sum, room) => sum + room.persons, 0);
+  }, [selectedRooms]);
+
   const canGoNext =
     (step === 1 && Boolean(startDate && endDate && nights > 0)) ||
-    (step === 2 && selectedRooms.length > 0) ||
-    step === 3;
+    (step === 2 && selectedRooms.length > 0);
 
-  const primarySelectedRoom = useMemo(() => {
-    const first = selectedRooms[0];
-    if (!first) return null;
-
-    return {
-      id: first.lineId,
-      offerId: first.offerId,
-      roomName: first.roomName,
-      persons: first.persons,
-      roomPrice: first.totalPrice,
-      mealPlans: first.mealPlans,
-      mealPlanCode: first.mealPlanCode,
-    };
-  }, [selectedRooms]);
+  const canSubmit =
+    step === 3 &&
+    Boolean(startDate && endDate) &&
+    selectedRooms.length > 0 &&
+    guestName.trim().length > 1 &&
+    guestEmail.trim().length > 3 &&
+    paymentReady &&
+    !isSubmitting;
 
   async function loadAvailability() {
     if (!startDate || !endDate) return;
@@ -78,10 +98,20 @@ export function useBookingFlow() {
       setIsLoadingAvailability(true);
       setAvailabilityError("");
       setSelectedRooms([]);
+      setPaymentReady(false);
+      setSubmitError("");
       setRoomTypeFilter("all");
 
       const response = await getBookingAvailability({ startDate, endDate });
-      setAvailability(response.roomTypes);
+
+      setAvailability(
+        response.roomTypes.map((roomType) => ({
+          ...roomType,
+          availableRooms: roomType.availableRooms ?? 0,
+          mealPlans: roomType.mealPlans ?? [],
+        })),
+      );
+
       setStep(2);
     } catch (error) {
       setAvailability([]);
@@ -97,57 +127,65 @@ export function useBookingFlow() {
 
   function addRoom(room: SelectedRoomLine) {
     setSelectedRooms((prev) => [...prev, room]);
+    setPaymentReady(false);
   }
 
   function removeRoom(lineId: string) {
     setSelectedRooms((prev) => prev.filter((room) => room.lineId !== lineId));
+    setPaymentReady(false);
   }
 
-  async function submitBooking(closeBooking: () => void) {
-    if (!startDate || !endDate || selectedRooms.length === 0) return;
+  function submitBooking() {
+    if (!canSubmit) return;
 
     setIsSubmitting(true);
     setSubmitError("");
+    setPaymentSubmitTrigger((prev) => prev + 1);
+  }
 
-    try {
-      await createBooking({
-        startDate,
-        endDate,
-        guestName,
-        guestEmail,
-        selections: selectedRooms.map((room) => ({
-          roomTypeId: room.offerId,
-          adults: room.adults,
-          children: room.children,
-          mealPlanCode: room.mealPlanCode,
-        })),
-      });
+  function handlePaymentSuccess(paymentIntentId: string) {
+    setPaymentSuccessIntentId(paymentIntentId);
+    setSubmitError("");
+    setIsSubmitting(false);
+    setPaymentReady(false);
+    setStep(4);
+  }
 
-      closeBooking();
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la création de la réservation.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+  function handlePaymentError(message: string) {
+    setSubmitError(message);
+    setIsSubmitting(false);
   }
 
   function goNext() {
     if (step === 1) {
-      loadAvailability();
+      void loadAvailability();
       return;
     }
-    setStep((prev) => (prev === 2 ? 3 : 3));
+
+    if (step === 2) {
+      setPaymentReady(false);
+      setSubmitError("");
+      setStep(3);
+    }
   }
 
   function goBack() {
-    setStep((prev) => (prev === 3 ? 2 : prev === 2 ? 1 : 1));
+    setSubmitError("");
+    setIsSubmitting(false);
+
+    setStep((prev) => {
+      if (prev === 4) return 3;
+      if (prev === 3) return 2;
+      if (prev === 2) return 1;
+      return 1;
+    });
   }
 
   function selectDate(value: string) {
+    setPaymentReady(false);
+    setSubmitError("");
+    setPaymentSuccessIntentId(null);
+
     if (!startDate) {
       setStartDate(value);
       setEndDate(null);
@@ -180,28 +218,36 @@ export function useBookingFlow() {
     nights,
     roomTypeFilter,
     roomTypeOptions,
-    availability:
-      step === 2 || step === 1
-        ? filteredOffers
-        : availability,
+    availability: step === 1 || step === 2 ? filteredOffers : availability,
     availabilityError,
     isLoadingAvailability,
     selectedRooms,
     guestName,
     guestEmail,
+    guestPhone,
+    paymentMethod,
+    paymentReady,
+    paymentSubmitTrigger,
+    paymentSuccessIntentId,
     submitError,
     isSubmitting,
     totalPrice,
-    primarySelectedRoom,
+    totalPersons,
     canGoNext,
+    canSubmit,
     setRoomTypeFilter,
     setGuestName,
     setGuestEmail,
+    setGuestPhone,
+    setPaymentMethod,
+    setPaymentReady,
     selectDate,
     loadAvailability,
     addRoom,
     removeRoom,
     submitBooking,
+    handlePaymentSuccess,
+    handlePaymentError,
     goNext,
     goBack,
   };

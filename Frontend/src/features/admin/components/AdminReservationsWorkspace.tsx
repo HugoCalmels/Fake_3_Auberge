@@ -9,6 +9,7 @@ import AdminReservationsSidebar from "./AdminReservationsSidebar";
 import AdminRoomsView from "./AdminRoomViews";
 import AdminRoomTypesView from "./AdminRoomTypesView";
 import AdminStatsPanel from "./AdminStatsPanel";
+import AdminSystemLogsView from "./AdminSystemLogsView";
 
 type Props = {
   admin: {
@@ -19,25 +20,35 @@ type Props = {
   onLogout: () => void;
 };
 
-export default function AdminReservationsWorkspace({ admin, onLogout }: Props) {
+export default function AdminReservationsWorkspace({
+  admin,
+  onLogout,
+}: Props) {
   const {
     panel,
     setPanel,
     selectedBookingId,
     setSelectedBookingId,
+
     rooms,
     roomTypes,
     bookings,
+    stats,
+
     bootLoading,
     bootError,
     roomsBusy,
     roomTypesBusy,
     planningRefreshKey,
-    stats,
+
     handleAddRoom,
     handleDeleteRoom,
     handleUpdateRoomStatus,
+
     handleAddRoomType,
+    handleUpdateRoomType,
+    handleDeleteRoomType,
+
     handleBookingUpdated,
     handleBookingCreated,
   } = useAdminWorkspace();
@@ -64,15 +75,16 @@ export default function AdminReservationsWorkspace({ admin, onLogout }: Props) {
       <div className="overflow-hidden rounded-[22px] border border-[#d8d0c2] bg-white shadow-sm">
         <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
-            <h1 className="text-[2rem] font-semibold leading-none text-[#1e1e1e]">
-              Dashboard admin
+            <h1 className="text-[1.75rem] font-semibold leading-none text-[#1e1e1e]">
+              Admin
             </h1>
             <p className="mt-2 text-sm leading-none text-[#6c675f]">
-              Connecte en tant que {admin.email}
+              Connecté en tant que {admin.email}
             </p>
           </div>
 
           <button
+            type="button"
             onClick={onLogout}
             className="w-fit shrink-0 cursor-pointer rounded-full border border-[#314835] px-5 py-2 text-sm font-semibold text-[#314835] transition hover:bg-[#314835] hover:text-white"
           >
@@ -91,16 +103,7 @@ export default function AdminReservationsWorkspace({ admin, onLogout }: Props) {
         />
 
         <main className="min-w-0">
-          {selectedBookingId ? (
-            <AdminBookingDetailView
-              bookingId={selectedBookingId}
-              rooms={rooms}
-              onBack={() => setSelectedBookingId(null)}
-              onBookingUpdated={handleBookingUpdated}
-            />
-          ) : null}
-
-          {!selectedBookingId && panel === "reservations-dashboard" ? (
+          {!selectedBookingId && panel === "reservations-planning" ? (
             <AdminReservationPlanningView
               rooms={rooms}
               roomTypes={roomTypes}
@@ -110,28 +113,9 @@ export default function AdminReservationsWorkspace({ admin, onLogout }: Props) {
             />
           ) : null}
 
-          {!selectedBookingId && panel === "bookings-upcoming" ? (
+          {!selectedBookingId && panel === "bookings-list" ? (
             <AdminBookingsListView
               bookings={bookings}
-              mode="upcoming"
-              onSelectBooking={setSelectedBookingId}
-              onBookingUpdated={handleBookingUpdated}
-            />
-          ) : null}
-
-          {!selectedBookingId && panel === "bookings-current" ? (
-            <AdminBookingsListView
-              bookings={bookings}
-              mode="current"
-              onSelectBooking={setSelectedBookingId}
-              onBookingUpdated={handleBookingUpdated}
-            />
-          ) : null}
-
-          {!selectedBookingId && panel === "bookings-history" ? (
-            <AdminBookingsListView
-              bookings={bookings}
-              mode="history"
               onSelectBooking={setSelectedBookingId}
               onBookingUpdated={handleBookingUpdated}
             />
@@ -155,14 +139,29 @@ export default function AdminReservationsWorkspace({ admin, onLogout }: Props) {
               roomTypes={roomTypes}
               busy={roomTypesBusy}
               onAddRoomType={handleAddRoomType}
+              onUpdateRoomType={handleUpdateRoomType}
+              onDeleteRoomType={handleDeleteRoomType}
             />
           ) : null}
 
           {!selectedBookingId && panel === "stats" ? (
             <AdminStatsPanel stats={stats} />
           ) : null}
+
+          {!selectedBookingId && panel === "system-logs" ? (
+            <AdminSystemLogsView />
+          ) : null}
         </main>
       </div>
+
+      <AdminBookingDetailView
+        open={Boolean(selectedBookingId)}
+        bookingId={selectedBookingId}
+        rooms={rooms}
+        roomTypes={roomTypes}
+        onClose={() => setSelectedBookingId(null)}
+        onUpdated={handleBookingUpdated}
+      />
     </div>
   );
 }

@@ -12,28 +12,19 @@ export default function AdminReservationsSidebar({
   onChange,
 }: Props) {
   return (
-    <aside className="rounded-[20px] border border-[#d8d0c2] bg-white p-4 shadow-sm">
-      <div className="space-y-6">
+    <aside className="self-start rounded-[20px] border border-[#d8d0c2] bg-white p-4 shadow-sm">
+      <nav className="space-y-7">
         <SidebarSection title="Réservations">
           <SidebarButton
-            label="Dashboard"
-            active={panel === "reservations-dashboard"}
-            onClick={() => onChange("reservations-dashboard")}
+            label="Planning"
+            active={panel === "reservations-planning"}
+            onClick={() => onChange("reservations-planning")}
           />
+
           <SidebarButton
-            label="À venir"
-            active={panel === "bookings-upcoming"}
-            onClick={() => onChange("bookings-upcoming")}
-          />
-          <SidebarButton
-            label="En cours"
-            active={panel === "bookings-current"}
-            onClick={() => onChange("bookings-current")}
-          />
-          <SidebarButton
-            label="Historique"
-            active={panel === "bookings-history"}
-            onClick={() => onChange("bookings-history")}
+            label="Liste"
+            active={panel === "bookings-list"}
+            onClick={() => onChange("bookings-list")}
           />
         </SidebarSection>
 
@@ -43,6 +34,7 @@ export default function AdminReservationsSidebar({
             active={panel === "rooms"}
             onClick={() => onChange("rooms")}
           />
+
           <SidebarButton
             label="Types de chambres"
             active={panel === "roomTypes"}
@@ -57,7 +49,12 @@ export default function AdminReservationsSidebar({
             onClick={() => onChange("stats")}
           />
         </SidebarSection>
-      </div>
+        <SidebarButton
+  label="Journal"
+  active={panel === "system-logs"}
+  onClick={() => onChange("system-logs")}
+/>
+      </nav>
     </aside>
   );
 }
@@ -70,12 +67,15 @@ function SidebarSection({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#8a847b]">
+    <section>
+      <p className="px-1 text-[12px] font-extrabold uppercase tracking-[0.22em] text-[#1e1e1e]">
         {title}
       </p>
-      <div className="space-y-2">{children}</div>
-    </div>
+
+      <div className="mt-3 space-y-2.5">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -92,10 +92,10 @@ function SidebarButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full cursor-pointer items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
+      className={`flex w-full cursor-pointer items-center rounded-xl px-3.5 py-2.5 text-left text-[14px] font-medium transition ${
         active
           ? "bg-[#314835] text-white"
-          : "bg-[#f8f3ea] text-[#314835] hover:bg-[#efe8dc]"
+          : "bg-[#eee6da] text-[#314835] hover:bg-[#e3d8c9]"
       }`}
     >
       <span>{label}</span>

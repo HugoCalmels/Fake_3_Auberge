@@ -13,21 +13,28 @@ import {
 } from "@/features/admin/api/adminRooms.api";
 import {
   createAdminRoomType,
+  deleteAdminRoomType,
   getAdminRoomTypes,
+  updateAdminRoomType,
 } from "@/features/admin/api/adminRoomTypes.api";
 import { sortRooms } from "@/features/admin/lib/admin-utils";
 import type {
   AdminBookingDetailDto,
   AdminBookingDto,
+  AdminRoomDto,
   AdminRoomTypeDto,
   AdminWorkspacePanel,
-  AdminRoomDto,
+  CreateAdminRoomTypePayload,
+  UpdateAdminRoomTypePayload,
 } from "@/features/admin/types";
 
 export function useAdminWorkspace() {
   const [panel, setPanel] =
-    useState<AdminWorkspacePanel>("reservations-dashboard");
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+    useState<AdminWorkspacePanel>("reservations-planning");
+
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    null,
+  );
 
   const [rooms, setRooms] = useState<AdminRoomDto[]>([]);
   const [roomTypes, setRoomTypes] = useState<AdminRoomTypeDto[]>([]);
@@ -51,7 +58,7 @@ export function useAdminWorkspace() {
           getAdminBookings().catch(() => []),
         ]);
 
-        setRooms(roomsData);
+        setRooms(roomsData.sort(sortRooms));
         setRoomTypes(roomTypesData);
         setBookings(bookingsData);
       } catch (err) {
@@ -65,7 +72,7 @@ export function useAdminWorkspace() {
       }
     }
 
-    boot();
+    void boot();
   }, []);
 
   async function refreshBookings() {
@@ -84,6 +91,7 @@ export function useAdminWorkspace() {
     try {
       const created = await createAdminRoom(input);
       setRooms((prev) => [...prev, created].sort(sortRooms));
+      setPlanningRefreshKey((prev) => prev + 1);
     } finally {
       setRoomsBusy(false);
     }
@@ -95,6 +103,7 @@ export function useAdminWorkspace() {
     try {
       await deleteAdminRoom(roomId);
       setRooms((prev) => prev.filter((room) => room.id !== roomId));
+      setPlanningRefreshKey((prev) => prev + 1);
     } finally {
       setRoomsBusy(false);
     }
@@ -110,18 +119,18 @@ export function useAdminWorkspace() {
       const updated = await updateAdminRoomStatus(roomId, payload);
 
       setRooms((prev) =>
-        prev.map((room) => (room.id === roomId ? updated : room)).sort(sortRooms),
+        prev
+          .map((room) => (room.id === roomId ? updated : room))
+          .sort(sortRooms),
       );
+
+      setPlanningRefreshKey((prev) => prev + 1);
     } finally {
       setRoomsBusy(false);
     }
   }
 
-  async function handleAddRoomType(input: {
-    code: string;
-    name: string;
-    capacity: number;
-  }) {
+  async function handleAddRoomType(input: CreateAdminRoomTypePayload) {
     setRoomTypesBusy(true);
 
     try {
@@ -132,12 +141,46 @@ export function useAdminWorkspace() {
     }
   }
 
+  async function handleUpdateRoomType(
+    roomTypeId: string,
+    input: UpdateAdminRoomTypePayload,
+  ) {
+    setRoomTypesBusy(true);
+
+    try {
+      const updated = await updateAdminRoomType(roomTypeId, input);
+
+      setRoomTypes((prev) =>
+        prev.map((type) => (type.id === updated.id ? updated : type)),
+      );
+
+      setPlanningRefreshKey((prev) => prev + 1);
+    } finally {
+      setRoomTypesBusy(false);
+    }
+  }
+
+  async function handleDeleteRoomType(roomTypeId: string) {
+    setRoomTypesBusy(true);
+
+    try {
+      await deleteAdminRoomType(roomTypeId);
+
+      setRoomTypes((prev) => prev.filter((type) => type.id !== roomTypeId));
+      setPlanningRefreshKey((prev) => prev + 1);
+    } finally {
+      setRoomTypesBusy(false);
+    }
+  }
+
   async function handleBookingUpdated(
     updatedBooking: AdminBookingDto | AdminBookingDetailDto,
   ) {
     setBookings((prev) =>
       prev.map((booking) =>
-        booking.id === updatedBooking.id ? { ...booking, ...updatedBooking } : booking,
+        booking.id === updatedBooking.id
+          ? { ...booking, ...updatedBooking }
+          : booking,
       ),
     );
 
@@ -152,7 +195,8 @@ export function useAdminWorkspace() {
   const stats = useMemo(
     () => ({
       totalRooms: rooms.length,
-      availableRooms: rooms.filter((room) => room.status === "available").length,
+      availableRooms: rooms.filter((room) => room.status === "available")
+        .length,
       occupiedRooms: rooms.filter((room) => room.status === "occupied").length,
       roomTypesCount: roomTypes.length,
       totalBookings: bookings.length,
@@ -165,19 +209,26 @@ export function useAdminWorkspace() {
     setPanel,
     selectedBookingId,
     setSelectedBookingId,
+
     rooms,
     roomTypes,
     bookings,
+
     bootLoading,
     bootError,
     roomsBusy,
     roomTypesBusy,
     planningRefreshKey,
     stats,
+
     handleAddRoom,
     handleDeleteRoom,
     handleUpdateRoomStatus,
+
     handleAddRoomType,
+    handleUpdateRoomType,
+    handleDeleteRoomType,
+
     handleBookingUpdated,
     handleBookingCreated,
   };

@@ -15,14 +15,17 @@ export type LoginResponse = {
 };
 
 export async function loginAdmin(
-  payload: LoginPayload
+  payload: LoginPayload,
 ): Promise<LoginResponse> {
   const response = await fetch(getApiUrl("auth/login"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      email: payload.email.trim().toLowerCase(),
+      password: payload.password,
+    }),
   });
 
   if (!response.ok) {
@@ -34,27 +37,15 @@ export async function loginAdmin(
 
 export async function getMe(token: string) {
   const response = await fetch(getApiUrl("auth/me"), {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
 
   if (!response.ok) {
-    throw new Error("Non authentifié.");
+    throw new Error("Non authentifie.");
   }
 
   return response.json();
-}
-
-export function getStoredAdminToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("admin_token");
-}
-
-export function setStoredAdminToken(token: string) {
-  localStorage.setItem("admin_token", token);
-}
-
-export function removeStoredAdminToken() {
-  localStorage.removeItem("admin_token");
 }

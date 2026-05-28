@@ -1,6 +1,6 @@
 export default function IntroSection() {
   return (
-    <section className="mx-auto w-full max-w-[1280px] px-4 py-20 sm:px-6 lg:px-8">
+    <section className="mx-auto w-full max-w-[1280px] px-4 pt-20 pb-10 sm:px-6 lg:px-8">
       <div className="max-w-[720px] space-y-6 text-[15px] leading-8 text-[#5f5a52] sm:text-base">
         <p>
           Située dans le village d’Auzat, au cœur du Parc Naturel Régional dans

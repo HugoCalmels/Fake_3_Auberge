@@ -24,21 +24,29 @@ export default function Hero({ openBooking }: HeroProps) {
           <div className="flex h-full items-center pb-[96px]">
             <div className="max-w-[500px]">
               <h1
-                className="uppercase text-[#f3ede3]"
+                className="uppercase"
                 style={{
                   fontFamily: "var(--font-heading), sans-serif",
                   fontSize: "clamp(3.2rem, 4.5vw, 5rem)",
                   fontWeight: 800,
                   lineHeight: 0.98,
                   letterSpacing: "-0.03em",
+                  color: "#f3ede3",
+                  textShadow: "0 2px 12px rgba(0,0,0,0.18)",
                 }}
               >
                 Auberge du
                 <br />
-                Montcalm
+                Fauxcalm
               </h1>
 
-              <p className="mt-5 max-w-[460px] text-[18px] leading-8 text-[#efe8db]">
+              <p
+                className="mt-5 max-w-[460px] text-[18px] leading-8"
+                style={{
+                  color: "#efe8db",
+                  textShadow: "0 1px 8px rgba(0,0,0,0.14)",
+                }}
+              >
                 Hébergement, restaurant et séjours au cœur de la vallée d’Auzat.
               </p>
             </div>

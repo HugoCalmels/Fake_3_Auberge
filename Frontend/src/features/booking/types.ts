@@ -1,7 +1,6 @@
 import type {
   MealPlanAvailabilityDto,
   MealPlanCode,
-  RoomTypeCode,
 } from "@/features/booking/api/bookings.api";
 
 export type BookingSearch = {
@@ -14,18 +13,19 @@ export type RoomMealPlan = MealPlanAvailabilityDto;
 
 export type RoomAvailability = {
   id: string;
-  code: RoomTypeCode;
+  code: string;
   name: string;
   description: string;
   maxCapacity: number;
   basePrice: number;
+  imageUrl?: string | null;
   availableRooms: number;
   mealPlans: RoomMealPlan[];
 };
 
 export type SelectedRoomConfig = {
   id: string;
-  offerId: RoomTypeCode;
+  offerId: string;
   roomName: string;
   persons: number;
   roomPrice: number;
@@ -35,7 +35,7 @@ export type SelectedRoomConfig = {
 
 export type SelectedRoomLine = {
   lineId: string;
-  offerId: RoomTypeCode;
+  offerId: string;
   roomName: string;
   persons: number;
   adults: number;
@@ -53,3 +53,11 @@ export const DEFAULT_BOOKING_SEARCH: BookingSearch = {
   endDate: null,
   rooms: 1,
 };
+
+export function formatShortDate(value: string) {
+  return new Date(value).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
