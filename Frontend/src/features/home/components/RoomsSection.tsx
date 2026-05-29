@@ -7,15 +7,23 @@ import {
   type RoomTypeAvailabilityDto,
 } from "@/features/booking/api/bookings.api";
 import { getAdminRoomTypeImageSrc } from "@/features/admin/api/adminRoomTypes.api";
+import type { AdminRoomTypeDto } from "@/features/admin/types";
 
 type Props = {
+  roomTypes?: AdminRoomTypeDto[];
   openBooking: () => void;
   limit?: number;
 };
 
-export default function RoomsSection({ openBooking, limit = 6 }: Props) {
-  const [roomTypes, setRoomTypes] = useState<RoomTypeAvailabilityDto[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function RoomsSection({
+  roomTypes: initialRoomTypes = [],
+  openBooking,
+  limit = 6,
+}: Props) {
+  const [roomTypes, setRoomTypes] = useState<RoomTypeAvailabilityDto[]>(() =>
+    normalizeRoomTypesFromProps(initialRoomTypes),
+  );
+  const [loading, setLoading] = useState(initialRoomTypes.length === 0);
   const [error, setError] = useState("");
   const carouselRef = useRef<HTMLDivElement | null>(null);
 
@@ -24,6 +32,13 @@ export default function RoomsSection({ openBooking, limit = 6 }: Props) {
   }, [roomTypes, limit]);
 
   useEffect(() => {
+    if (initialRoomTypes.length > 0) {
+      setRoomTypes(normalizeRoomTypesFromProps(initialRoomTypes));
+      setLoading(false);
+      setError("");
+      return;
+    }
+
     async function loadRoomTypes() {
       setLoading(true);
       setError("");
@@ -43,7 +58,7 @@ export default function RoomsSection({ openBooking, limit = 6 }: Props) {
     }
 
     void loadRoomTypes();
-  }, []);
+  }, [initialRoomTypes]);
 
   function scrollCarousel(direction: "prev" | "next") {
     const carousel = carouselRef.current;
@@ -56,8 +71,8 @@ export default function RoomsSection({ openBooking, limit = 6 }: Props) {
   }
 
   return (
-    <section id="hebergement" className=" bg-[#f4efe7]">
-<div className="mx-auto max-w-[1280px] px-4 pt-24 pb-20 sm:px-6 lg:px-8 lg:pt-30 lg:pb-24">
+    <section id="hebergement" className="bg-[#f4efe7]">
+      <div className="mx-auto max-w-[1280px] px-4 pt-24 pb-20 sm:px-6 lg:px-8 lg:pt-30 lg:pb-24">
         <div className="max-w-[820px]">
           <h2 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl">
             Hébergements
@@ -93,26 +108,26 @@ export default function RoomsSection({ openBooking, limit = 6 }: Props) {
           ) : (
             <div>
               <div className="mb-6 flex justify-start">
-  <div className="hidden items-center gap-3 md:flex">
-    <button
-      type="button"
-      onClick={() => scrollCarousel("prev")}
-      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7]"
-      aria-label="Voir les chambres précédentes"
-    >
-      ←
-    </button>
+                <div className="hidden items-center gap-3 md:flex">
+                  <button
+                    type="button"
+                    onClick={() => scrollCarousel("prev")}
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7]"
+                    aria-label="Voir les chambres précédentes"
+                  >
+                    ←
+                  </button>
 
-    <button
-      type="button"
-      onClick={() => scrollCarousel("next")}
-      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7]"
-      aria-label="Voir les chambres suivantes"
-    >
-      →
-    </button>
-  </div>
-</div>
+                  <button
+                    type="button"
+                    onClick={() => scrollCarousel("next")}
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7]"
+                    aria-label="Voir les chambres suivantes"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
 
               <div
                 ref={carouselRef}
@@ -132,6 +147,22 @@ export default function RoomsSection({ openBooking, limit = 6 }: Props) {
       </div>
     </section>
   );
+}
+
+function normalizeRoomTypesFromProps(
+  roomTypes: AdminRoomTypeDto[],
+): RoomTypeAvailabilityDto[] {
+  return roomTypes.map((room) => ({
+    id: room.id,
+    code: room.code,
+    name: room.name,
+    description: room.description,
+    maxCapacity: room.maxCapacity,
+    basePrice: room.basePrice,
+    imageUrl: room.imageUrl,
+    availableRooms: 0,
+    mealPlans: [],
+  }));
 }
 
 function RoomPreviewCard({
@@ -164,7 +195,7 @@ function RoomPreviewCard({
       </div>
 
       <div className="p-6">
-    <div className="flex min-h-[72px] items-start justify-between gap-4">
+        <div className="flex min-h-[72px] items-start justify-between gap-4">
           <h3 className="text-[24px] font-semibold tracking-[-0.03em] text-[#2d2c29]">
             {room.name}
           </h3>
@@ -187,13 +218,13 @@ function RoomPreviewCard({
             / nuit
           </p>
 
-<button
-  type="button"
-  onClick={openBooking}
-  className="cursor-pointer rounded-full border border-[#d8d1c6] bg-white px-5 py-2.5 text-sm font-semibold text-[#314835] transition hover:bg-[#ece4d7]"
->
-  Réserver
-</button>
+          <button
+            type="button"
+            onClick={openBooking}
+            className="cursor-pointer rounded-full border border-[#d8d1c6] bg-white px-5 py-2.5 text-sm font-semibold text-[#314835] transition hover:bg-[#ece4d7]"
+          >
+            Réserver
+          </button>
         </div>
       </div>
     </article>

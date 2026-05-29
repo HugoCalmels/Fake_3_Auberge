@@ -29,7 +29,6 @@ export default function AdminReservationPlanningView({
   rooms,
   roomTypes,
   onSelectBooking,
-  onBookingCreated,
   refreshKey,
 }: Props) {
   const [rangeStart, setRangeStart] = useState(getTodayInputDate());
@@ -58,10 +57,7 @@ export default function AdminReservationPlanningView({
     [rangeStart],
   );
 
-  const fetchEnd = useMemo(
-    () => addDaysToInputDate(rangeEnd, 1),
-    [rangeEnd],
-  );
+  const fetchEnd = useMemo(() => addDaysToInputDate(rangeEnd, 1), [rangeEnd]);
 
   const loadPlanning = useCallback(async () => {
     setLoading(true);
@@ -101,8 +97,7 @@ export default function AdminReservationPlanningView({
     setCreateOpen(true);
   }
 
-  async function handleCreated(booking: AdminBookingDetailDto) {
-    await onBookingCreated(booking);
+  async function handleCreated() {
     await loadPlanning();
     setCreateOpen(false);
   }
@@ -480,25 +475,11 @@ function isBookingDateWarning(
   const start = stripTime(new Date(booking.startDate));
   const end = stripTime(new Date(booking.endDate));
 
-  if (booking.status === "pending") {
-    return true;
-  }
-
-  if (booking.status === "confirmed" && start <= today && end > today) {
-    return true;
-  }
-
-  if (booking.status === "confirmed" && end <= today) {
-    return true;
-  }
-
-  if (booking.status === "checked_in" && end <= today) {
-    return true;
-  }
-
-  if (booking.status === "checked_in" && start > today) {
-    return true;
-  }
+  if (booking.status === "pending") return true;
+  if (booking.status === "confirmed" && start <= today && end > today) return true;
+  if (booking.status === "confirmed" && end <= today) return true;
+  if (booking.status === "checked_in" && end <= today) return true;
+  if (booking.status === "checked_in" && start > today) return true;
 
   return false;
 }

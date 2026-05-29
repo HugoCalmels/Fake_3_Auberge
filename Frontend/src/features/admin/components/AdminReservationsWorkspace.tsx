@@ -126,7 +126,12 @@ export default function AdminReservationsWorkspace({
               rooms={rooms}
               roomTypes={roomTypes}
               busy={roomsBusy}
-              onAddRoom={handleAddRoom}
+              onAddRoom={(input) =>
+                handleAddRoom({
+                  ...input,
+                  floor: 1,
+                })
+              }
               onDeleteRoom={handleDeleteRoom}
               onUpdateRoomStatus={(roomId, status: AdminRoomStatus) =>
                 handleUpdateRoomStatus(roomId, { status })
