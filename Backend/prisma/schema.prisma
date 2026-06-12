@@ -170,18 +170,22 @@ model AdminUser {
 model SystemLog {
   id String @id @default(cuid())
 
-  level   SystemLogLevel @default(info)
-  type    String
-  message String
+  type    SystemLogType
+  message String?
 
-  bookingId String?
-  metadata  Json?
+  bookingId      String?
+  bookingGroupId String?
+  metadata       Json?
 
   createdAt DateTime @default(now())
 }
 
-enum SystemLogLevel {
-  info
-  warn
-  error
+
+enum SystemLogType {
+  website_booking_validated
+  website_booking_failed
+  admin_booking_created
+  admin_booking_deleted
+  booking_check_in
+  booking_check_out
 }

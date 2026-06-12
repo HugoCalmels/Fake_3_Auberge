@@ -140,37 +140,42 @@ export default function Navbar({
               key={item.href}
               href={item.href}
               onClick={keepNavbarVisible}
-              className="text-[16px] font-semibold transition-opacity duration-300 hover:opacity-70"
+              className="text-[18px] font-semibold transition-opacity duration-300 hover:opacity-70"
             >
               {item.label}
             </a>
           ))}
 
-          {shouldShowBookingButton ? (
-            <button
-              type="button"
-              onClick={() => {
-                keepNavbarVisible();
-                openBooking?.();
-              }}
-              className="cursor-pointer rounded-full bg-[#eee6da] px-6 py-2.5 text-[12px] font-bold uppercase tracking-[0.16em] text-[#314835] shadow-sm transition-all duration-300 hover:bg-[#e3d8c9]"
-            >
-              Réserver
-            </button>
-          ) : null}
+{shouldShowBookingButton ? (
+  <button
+    type="button"
+    onClick={() => {
+      keepNavbarVisible();
+      openBooking?.();
+    }}
+    className="cursor-pointer rounded-full bg-[#eee6da]/95 px-7 py-3 text-[#314835] shadow-sm transition-all duration-300 hover:bg-[#f4eee3]"
+  >
+    <span className="block font-sans text-[14px] font-[700] uppercase tracking-[0.14em]">
+      Réserver
+    </span>
+  </button>
+) : null}
+
 
           <div ref={langRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setLangOpen((prev) => !prev)}
-              className={`min-w-[62px] cursor-pointer rounded-full border px-3.5 py-2.5 text-[12px] font-bold uppercase tracking-[0.16em] transition-all duration-300 ${
-                isScrolled
-                  ? "border-[#eadbc4] bg-transparent text-[#f4eee3] hover:bg-white/10"
-                  : "border-[#eadbc4] bg-[#314835] text-[#f4eee3] shadow-sm hover:bg-[#3a543d]"
-              }`}
-            >
-              {language}
-            </button>
+<button
+  type="button"
+  onClick={() => setLangOpen((prev) => !prev)}
+  className={`min-w-[62px] cursor-pointer rounded-full px-4 py-3 transition-all duration-300 ${
+    isScrolled
+      ? "bg-[#314835] text-[#f4eee3] shadow-sm hover:bg-[#3a543d]"
+      : "bg-[#314835] text-[#f4eee3] shadow-sm hover:bg-[#3a543d]"
+  }`}
+>
+  <span className="block font-sans text-[14px] font-[700] uppercase tracking-[0.14em]">
+    {language}
+  </span>
+</button>
 
             <div
               className={`absolute right-0 mt-2 min-w-[62px] overflow-hidden rounded-xl border border-[#d8d0c2] bg-[#f4f0e8] shadow-lg transition-all duration-300 ${
@@ -185,7 +190,10 @@ export default function Navbar({
                   setLanguage("FR");
                   setLangOpen(false);
                 }}
-                className={`block w-full cursor-pointer px-3 py-2 text-center text-[12px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+                style={{
+                  fontFamily: "var(--font-heading), sans-serif",
+                }}
+                className={`block w-full cursor-pointer px-3 py-2 text-center text-[13px] font-[700] uppercase tracking-[0.08em] transition-colors ${
                   language === "FR"
                     ? "bg-[#eee6da] text-[#314835]"
                     : "text-[#314835] hover:bg-[#e3d8c9]"
@@ -200,7 +208,10 @@ export default function Navbar({
                   setLanguage("EN");
                   setLangOpen(false);
                 }}
-                className={`block w-full cursor-pointer px-3 py-2 text-center text-[12px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+                style={{
+                  fontFamily: "var(--font-heading), sans-serif",
+                }}
+                className={`block w-full cursor-pointer px-3 py-2 text-center text-[13px] font-[700] uppercase tracking-[0.08em] transition-colors ${
                   language === "EN"
                     ? "bg-[#eee6da] text-[#314835]"
                     : "text-[#314835] hover:bg-[#e3d8c9]"

@@ -185,14 +185,20 @@ export type UpdateAdminRoomTypePayload = {
   imageUrl?: string;
 };
 
-export type AdminSystemLogLevel = "info" | "warn" | "error";
+export type AdminSystemLogType =
+  | "website_booking_validated"
+  | "website_booking_failed"
+  | "admin_booking_created"
+  | "admin_booking_deleted"
+  | "booking_check_in"
+  | "booking_check_out";
 
 export type AdminSystemLogDto = {
   id: string;
-  level: AdminSystemLogLevel;
-  type: string;
-  message: string;
+  type: AdminSystemLogType;
+  message?: string | null;
   bookingId?: string | null;
+  bookingGroupId?: string | null;
   metadata?: unknown;
   createdAt: string;
 };

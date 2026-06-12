@@ -1152,10 +1152,10 @@ export type AdminUserScalarFieldEnum = (typeof AdminUserScalarFieldEnum)[keyof t
 
 export const SystemLogScalarFieldEnum = {
   id: 'id',
-  level: 'level',
   type: 'type',
   message: 'message',
   bookingId: 'bookingId',
+  bookingGroupId: 'bookingGroupId',
   metadata: 'metadata',
   createdAt: 'createdAt'
 } as const
@@ -1323,16 +1323,16 @@ export type ListEnumPaymentStatusFieldRefInput<$PrismaModel> = FieldRefInputType
 
 
 /**
- * Reference to a field of type 'SystemLogLevel'
+ * Reference to a field of type 'SystemLogType'
  */
-export type EnumSystemLogLevelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SystemLogLevel'>
+export type EnumSystemLogTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SystemLogType'>
     
 
 
 /**
- * Reference to a field of type 'SystemLogLevel[]'
+ * Reference to a field of type 'SystemLogType[]'
  */
-export type ListEnumSystemLogLevelFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SystemLogLevel[]'>
+export type ListEnumSystemLogTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SystemLogType[]'>
     
 
 

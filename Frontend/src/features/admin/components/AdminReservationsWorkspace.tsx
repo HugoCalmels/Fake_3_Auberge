@@ -154,7 +154,7 @@ export default function AdminReservationsWorkspace({
           ) : null}
 
           {!selectedBookingId && panel === "system-logs" ? (
-            <AdminSystemLogsView />
+            <AdminSystemLogsView onSelectBooking={setSelectedBookingId} />
           ) : null}
         </main>
       </div>

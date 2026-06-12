@@ -10,18 +10,28 @@ import {
   MealPlanCode,
   PaymentStatus,
   RoomStatus,
+  SystemLogType,
 } from 'src/generated/prisma/client';
-import { buildDayRange, generateUniqueRoomTypeCode, getNights, mapAdminBooking } from './admin.utils';
+import {
+  buildDayRange,
+  generateUniqueRoomTypeCode,
+  getNights,
+  mapAdminBooking,
+} from './admin.utils';
 import { CreateAdminRoomDto } from './dto/create-admin-room.dto';
 import { UpdateAdminRoomStatusDto } from './dto/update-admin-room-status.dto';
 import { CreateAdminRoomTypeDto } from './dto/create-admin-room-type.dto';
 import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
 import { UpdateAdminBookingDto } from './dto/update-admin-booking.dto';
 import { UpdateAdminRoomTypeDto } from './dto/update-admin-room-type.dto';
+import { SystemLogsService } from '../system-logs/system-logs.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly systemLogsService: SystemLogsService,
+  ) {}
 
   async getRooms() {
     return this.prisma.room.findMany({
@@ -120,112 +130,112 @@ export class AdminService {
   }
 
   async getRoomTypes() {
-  return this.prisma.roomType.findMany({
-    orderBy: { name: 'asc' },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      description: true,
-      maxCapacity: true,
-      basePrice: true,
-      imageUrl: true,
-    },
-  });
-}
-
-async createRoomType(dto: CreateAdminRoomTypeDto) {
-  const cleanName = dto.name.trim();
-
-  const existingName = await this.prisma.roomType.findFirst({
-    where: { name: cleanName },
-  });
-
-  if (existingName) {
-    throw new BadRequestException(
-      'Un type de chambre avec ce nom existe déjà.',
-    );
+    return this.prisma.roomType.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
+        maxCapacity: true,
+        basePrice: true,
+        imageUrl: true,
+      },
+    });
   }
 
-  const code = await generateUniqueRoomTypeCode(this.prisma, cleanName);
+  async createRoomType(dto: CreateAdminRoomTypeDto) {
+    const cleanName = dto.name.trim();
 
-  return this.prisma.roomType.create({
-    data: {
-      code,
-      name: cleanName,
-      description: dto.description.trim(),
-      maxCapacity: dto.maxCapacity,
-      basePrice: dto.basePrice,
-      imageUrl: dto.imageUrl?.trim() || null,
-    },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      description: true,
-      maxCapacity: true,
-      basePrice: true,
-      imageUrl: true,
-    },
-  });
-}
+    const existingName = await this.prisma.roomType.findFirst({
+      where: { name: cleanName },
+    });
 
-async updateRoomType(id: string, dto: UpdateAdminRoomTypeDto) {
-  const roomType = await this.prisma.roomType.findUnique({
-    where: { id },
-  });
+    if (existingName) {
+      throw new BadRequestException(
+        'Un type de chambre avec ce nom existe déjà.',
+      );
+    }
 
-  if (!roomType) {
-    throw new NotFoundException('Type de chambre introuvable.');
+    const code = await generateUniqueRoomTypeCode(this.prisma, cleanName);
+
+    return this.prisma.roomType.create({
+      data: {
+        code,
+        name: cleanName,
+        description: dto.description.trim(),
+        maxCapacity: dto.maxCapacity,
+        basePrice: dto.basePrice,
+        imageUrl: dto.imageUrl?.trim() || null,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
+        maxCapacity: true,
+        basePrice: true,
+        imageUrl: true,
+      },
+    });
   }
 
-  return this.prisma.roomType.update({
-    where: { id },
-    data: {
-      name: dto.name !== undefined ? dto.name.trim() : undefined,
-      description:
-        dto.description !== undefined ? dto.description.trim() : undefined,
-      maxCapacity: dto.maxCapacity,
-      basePrice: dto.basePrice,
-      imageUrl:
-        dto.imageUrl !== undefined ? dto.imageUrl.trim() || null : undefined,
-    },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      description: true,
-      maxCapacity: true,
-      basePrice: true,
-      imageUrl: true,
-    },
-  });
-}
+  async updateRoomType(id: string, dto: UpdateAdminRoomTypeDto) {
+    const roomType = await this.prisma.roomType.findUnique({
+      where: { id },
+    });
 
-async deleteRoomType(id: string) {
-  const roomType = await this.prisma.roomType.findUnique({
-    where: { id },
-    include: {
-      rooms: true,
-    },
-  });
+    if (!roomType) {
+      throw new NotFoundException('Type de chambre introuvable.');
+    }
 
-  if (!roomType) {
-    throw new NotFoundException('Type de chambre introuvable.');
+    return this.prisma.roomType.update({
+      where: { id },
+      data: {
+        name: dto.name !== undefined ? dto.name.trim() : undefined,
+        description:
+          dto.description !== undefined ? dto.description.trim() : undefined,
+        maxCapacity: dto.maxCapacity,
+        basePrice: dto.basePrice,
+        imageUrl:
+          dto.imageUrl !== undefined ? dto.imageUrl.trim() || null : undefined,
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
+        maxCapacity: true,
+        basePrice: true,
+        imageUrl: true,
+      },
+    });
   }
 
-  if (roomType.rooms.length > 0) {
-    throw new BadRequestException(
-      'Impossible de supprimer un type lié à des chambres.',
-    );
+  async deleteRoomType(id: string) {
+    const roomType = await this.prisma.roomType.findUnique({
+      where: { id },
+      include: {
+        rooms: true,
+      },
+    });
+
+    if (!roomType) {
+      throw new NotFoundException('Type de chambre introuvable.');
+    }
+
+    if (roomType.rooms.length > 0) {
+      throw new BadRequestException(
+        'Impossible de supprimer un type lié à des chambres.',
+      );
+    }
+
+    await this.prisma.roomType.delete({
+      where: { id },
+    });
+
+    return { success: true };
   }
-
-  await this.prisma.roomType.delete({
-    where: { id },
-  });
-
-  return { success: true };
-}
 
   async getBookings() {
     const bookings = await this.prisma.booking.findMany({
@@ -263,102 +273,198 @@ async deleteRoomType(id: string) {
     return mapAdminBooking(booking);
   }
 
-async createBooking(dto: CreateAdminBookingDto) {
-  const {
-    startDate,
-    endDate,
-    guestName,
-    guestEmail,
-    guestPhone,
-    notes,
-    paymentStatus,
-    paymentNote,
-    createdBy,
-    selections,
-  } = dto;
+  async createBooking(dto: CreateAdminBookingDto) {
+    const {
+      startDate,
+      endDate,
+      guestName,
+      guestEmail,
+      guestPhone,
+      notes,
+      paymentStatus,
+      paymentNote,
+      createdBy,
+      selections,
+    } = dto;
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    throw new BadRequestException('Dates invalides.');
-  }
-
-  if (end <= start) {
-    throw new BadRequestException(
-      "La date de départ doit être après la date d'arrivée.",
-    );
-  }
-
-  if (!selections.length) {
-    throw new BadRequestException('Aucune chambre sélectionnée.');
-  }
-
-  const nights = getNights(start, end);
-
-  const result = await this.prisma.$transaction(async (tx) => {
-    const normalizedGuestName = guestName.trim();
-    const normalizedGuestEmail = guestEmail.trim().toLowerCase();
-    const normalizedGuestPhone = guestPhone?.trim() || null;
-    const normalizedNotes = notes?.trim() || null;
-    const normalizedPaymentNote = paymentNote?.trim() || null;
-
-    const resolvedBookingSource =
-      createdBy === 'visitor'
-        ? BookingSource.website
-        : BookingSource.admin_manual;
-
-    const groupedSelections = new Map<string, typeof selections>();
-
-    for (const selection of selections) {
-      const key = selection.roomTypeId;
-
-      if (!groupedSelections.has(key)) {
-        groupedSelections.set(key, []);
-      }
-
-      groupedSelections.get(key)!.push(selection);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Dates invalides.');
     }
 
-    const allocatedRoomsByType = new Map<
-      string,
-      {
-        roomType: {
-          id: string;
-          code: string;
-          name: string;
-          maxCapacity: number;
-          basePrice: number;
-        };
-        rooms: { id: string; number: string }[];
+    if (end <= start) {
+      throw new BadRequestException(
+        "La date de départ doit être après la date d'arrivée.",
+      );
+    }
+
+    if (!selections.length) {
+      throw new BadRequestException('Aucune chambre sélectionnée.');
+    }
+
+    const nights = getNights(start, end);
+    const bookingGroupId = crypto.randomUUID();
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const normalizedGuestName = guestName.trim();
+      const normalizedGuestEmail = guestEmail.trim().toLowerCase();
+      const normalizedGuestPhone = guestPhone?.trim() || null;
+      const normalizedNotes = notes?.trim() || null;
+      const normalizedPaymentNote = paymentNote?.trim() || null;
+
+      const resolvedBookingSource =
+        createdBy === 'visitor'
+          ? BookingSource.website
+          : BookingSource.admin_manual;
+
+      const groupedSelections = new Map<string, typeof selections>();
+
+      for (const selection of selections) {
+        const key = selection.roomTypeId;
+
+        if (!groupedSelections.has(key)) {
+          groupedSelections.set(key, []);
+        }
+
+        groupedSelections.get(key)!.push(selection);
       }
-    >();
 
-    for (const [roomTypeId, grouped] of groupedSelections.entries()) {
-      const roomType = await tx.roomType.findUnique({
-        where: {
-          id: roomTypeId,
-        },
-      });
+      const allocatedRoomsByType = new Map<
+        string,
+        {
+          roomType: {
+            id: string;
+            code: string;
+            name: string;
+            maxCapacity: number;
+            basePrice: number;
+          };
+          rooms: { id: string; number: string }[];
+        }
+      >();
 
-      if (!roomType) {
-        throw new BadRequestException(
-          `Type de chambre introuvable: ${roomTypeId}`,
-        );
-      }
+      for (const [roomTypeId, grouped] of groupedSelections.entries()) {
+        const roomType = await tx.roomType.findUnique({
+          where: {
+            id: roomTypeId,
+          },
+        });
 
-      for (const selection of grouped) {
-        const persons = selection.adults + selection.children;
-
-        if (persons < 1) {
+        if (!roomType) {
           throw new BadRequestException(
-            'Chaque chambre doit contenir au moins une personne.',
+            `Type de chambre introuvable: ${roomTypeId}`,
           );
         }
 
-        if (persons > roomType.maxCapacity) {
+        for (const selection of grouped) {
+          const persons = selection.adults + selection.children;
+
+          if (persons < 1) {
+            throw new BadRequestException(
+              'Chaque chambre doit contenir au moins une personne.',
+            );
+          }
+
+          if (persons > roomType.maxCapacity) {
+            throw new BadRequestException(
+              `Capacité maximale dépassée pour ${roomType.name}.`,
+            );
+          }
+
+          const mealPlan = await tx.mealPlan.findFirst({
+            where: {
+              code: selection.mealPlanCode as MealPlanCode,
+            },
+          });
+
+          if (!mealPlan) {
+            throw new BadRequestException('Formule introuvable.');
+          }
+
+          const allowedMealPlan = await tx.roomTypeMealPlan.findUnique({
+            where: {
+              roomTypeId_mealPlanId: {
+                roomTypeId: roomType.id,
+                mealPlanId: mealPlan.id,
+              },
+            },
+          });
+
+          if (!allowedMealPlan) {
+            throw new BadRequestException(
+              `La formule ${mealPlan.name} n'est pas disponible pour ${roomType.name}.`,
+            );
+          }
+        }
+
+        const availableRooms = await tx.room.findMany({
+          where: {
+            roomTypeId: roomType.id,
+            status: RoomStatus.available,
+            bookings: {
+              none: {
+                status: {
+                  in: [
+                    BookingStatus.pending,
+                    BookingStatus.confirmed,
+                    BookingStatus.checked_in,
+                  ],
+                },
+                startDate: { lt: end },
+                endDate: { gt: start },
+              },
+            },
+          },
+          orderBy: {
+            number: 'asc',
+          },
+          take: grouped.length,
+          select: {
+            id: true,
+            number: true,
+          },
+        });
+
+        if (availableRooms.length < grouped.length) {
           throw new BadRequestException(
-            `Capacité maximale dépassée pour ${roomType.name}.`,
+            `Pas assez de chambres disponibles pour ${roomType.name}.`,
+          );
+        }
+
+        allocatedRoomsByType.set(roomTypeId, {
+          roomType: {
+            id: roomType.id,
+            code: roomType.code,
+            name: roomType.name,
+            maxCapacity: roomType.maxCapacity,
+            basePrice: roomType.basePrice,
+          },
+          rooms: availableRooms,
+        });
+      }
+
+      const createdBookings: {
+        id: string;
+        roomId: string;
+        roomPrice: number;
+        mealPlanPrice: number;
+        totalPrice: number;
+      }[] = [];
+
+      for (const selection of selections) {
+        const allocation = allocatedRoomsByType.get(selection.roomTypeId);
+
+        if (!allocation) {
+          throw new BadRequestException('Allocation de chambre impossible.');
+        }
+
+        const room = allocation.rooms.shift();
+
+        if (!room) {
+          throw new BadRequestException(
+            `Plus de chambre disponible pour ${allocation.roomType.name}.`,
           );
         }
 
@@ -372,335 +478,272 @@ async createBooking(dto: CreateAdminBookingDto) {
           throw new BadRequestException('Formule introuvable.');
         }
 
-        const allowedMealPlan = await tx.roomTypeMealPlan.findUnique({
-          where: {
-            roomTypeId_mealPlanId: {
-              roomTypeId: roomType.id,
-              mealPlanId: mealPlan.id,
-            },
+        const persons = selection.adults + selection.children;
+        const adultMeals = selection.adults;
+        const childMeals = selection.children;
+
+        const roomPrice = allocation.roomType.basePrice * nights;
+        const mealPlanPrice =
+          (mealPlan.adultPrice * adultMeals +
+            mealPlan.childPrice * childMeals) *
+          nights;
+        const totalPrice = roomPrice + mealPlanPrice;
+
+        const booking = await tx.booking.create({
+          data: {
+            bookingGroupId,
+
+            roomId: room.id,
+            mealPlanId: mealPlan.id,
+
+            startDate: start,
+            endDate: end,
+
+            persons,
+            adultMeals,
+            childMeals,
+
+            guestName: normalizedGuestName,
+            guestEmail: normalizedGuestEmail,
+            guestPhone: normalizedGuestPhone,
+            notes: normalizedNotes,
+
+            status: BookingStatus.confirmed,
+            bookingSource: resolvedBookingSource,
+            paymentStatus: paymentStatus as PaymentStatus,
+            paymentNote: normalizedPaymentNote,
+
+            roomPrice,
+            mealPlanPrice,
+            totalPrice,
+          },
+          select: {
+            id: true,
+            roomId: true,
+            roomPrice: true,
+            mealPlanPrice: true,
+            totalPrice: true,
           },
         });
 
-        if (!allowedMealPlan) {
-          throw new BadRequestException(
-            `La formule ${mealPlan.name} n'est pas disponible pour ${roomType.name}.`,
-          );
-        }
+        createdBookings.push(booking);
       }
 
-      const availableRooms = await tx.room.findMany({
-        where: {
-          roomTypeId: roomType.id,
-          status: RoomStatus.available,
-          bookings: {
-            none: {
-              status: {
-                in: [
-                  BookingStatus.pending,
-                  BookingStatus.confirmed,
-                  BookingStatus.checked_in,
-                ],
-              },
-              startDate: { lt: end },
-              endDate: { gt: start },
-            },
-          },
+      const pricing = createdBookings.reduce(
+        (acc, booking) => {
+          acc.roomPrice += booking.roomPrice;
+          acc.mealPlanPrice += booking.mealPlanPrice;
+          acc.totalPrice += booking.totalPrice;
+          return acc;
         },
-        orderBy: {
-          number: 'asc',
+        {
+          nights,
+          roomPrice: 0,
+          mealPlanPrice: 0,
+          totalPrice: 0,
         },
-        take: grouped.length,
-        select: {
-          id: true,
-          number: true,
-        },
-      });
+      );
 
-      if (availableRooms.length < grouped.length) {
-        throw new BadRequestException(
-          `Pas assez de chambres disponibles pour ${roomType.name}.`,
-        );
-      }
+      return {
+        bookingGroupId,
+        bookingIds: createdBookings.map((booking) => booking.id),
+        roomIds: createdBookings.map((booking) => booking.roomId),
+        pricing,
+      };
+    });
 
-      allocatedRoomsByType.set(roomTypeId, {
-        roomType: {
-          id: roomType.id,
-          code: roomType.code,
-          name: roomType.name,
-          maxCapacity: roomType.maxCapacity,
-          basePrice: roomType.basePrice,
-        },
-        rooms: availableRooms,
-      });
-    }
-
-    const createdBookings: {
-      id: string;
-      roomId: string;
-      roomPrice: number;
-      mealPlanPrice: number;
-      totalPrice: number;
-    }[] = [];
-
-    for (const selection of selections) {
-      const allocation = allocatedRoomsByType.get(selection.roomTypeId);
-
-      if (!allocation) {
-        throw new BadRequestException('Allocation de chambre impossible.');
-      }
-
-      const room = allocation.rooms.shift();
-
-      if (!room) {
-        throw new BadRequestException(
-          `Plus de chambre disponible pour ${allocation.roomType.name}.`,
-        );
-      }
-
-      const mealPlan = await tx.mealPlan.findFirst({
-        where: {
-          code: selection.mealPlanCode as MealPlanCode,
-        },
-      });
-
-      if (!mealPlan) {
-        throw new BadRequestException('Formule introuvable.');
-      }
-
-      const persons = selection.adults + selection.children;
-      const adultMeals = selection.adults;
-      const childMeals = selection.children;
-
-      const roomPrice = allocation.roomType.basePrice * nights;
-      const mealPlanPrice =
-        (mealPlan.adultPrice * adultMeals +
-          mealPlan.childPrice * childMeals) *
-        nights;
-      const totalPrice = roomPrice + mealPlanPrice;
-
-      const booking = await tx.booking.create({
-        data: {
-          roomId: room.id,
-          mealPlanId: mealPlan.id,
-          startDate: start,
-          endDate: end,
-          persons,
-          adultMeals,
-          childMeals,
-          guestName: normalizedGuestName,
-          guestEmail: normalizedGuestEmail,
-          guestPhone: normalizedGuestPhone,
-          notes: normalizedNotes,
-          status: BookingStatus.confirmed,
-          bookingSource: resolvedBookingSource,
-          paymentStatus: paymentStatus as PaymentStatus,
-          paymentNote: normalizedPaymentNote,
-          roomPrice,
-          mealPlanPrice,
-          totalPrice,
-        },
-        select: {
-          id: true,
-          roomId: true,
-          roomPrice: true,
-          mealPlanPrice: true,
-          totalPrice: true,
-        },
-      });
-
-      createdBookings.push(booking);
-    }
-
-    const pricing = createdBookings.reduce(
-      (acc, booking) => {
-        acc.roomPrice += booking.roomPrice;
-        acc.mealPlanPrice += booking.mealPlanPrice;
-        acc.totalPrice += booking.totalPrice;
-        return acc;
-      },
-      {
-        nights,
-        roomPrice: 0,
-        mealPlanPrice: 0,
-        totalPrice: 0,
-      },
-    );
-
-    return {
-      bookingIds: createdBookings.map((booking) => booking.id),
-      roomIds: createdBookings.map((booking) => booking.roomId),
-      pricing,
-    };
-  });
-
-  return {
-    success: true,
-    message: 'Réservation admin créée.',
-    bookingIds: result.bookingIds,
-    roomIds: result.roomIds,
-    selectionCount: selections.length,
-    pricing: result.pricing,
-  };
-}
-
-async updateBooking(id: string, dto: UpdateAdminBookingDto) {
-  const booking = await this.prisma.booking.findUnique({
-    where: { id },
-    include: {
-      room: { include: { roomType: true } },
-      mealPlan: true,
-    },
-  });
-
-  if (!booking) {
-    throw new NotFoundException('Réservation introuvable.');
-  }
-
-if (booking.status === BookingStatus.cancelled) {
-  throw new BadRequestException('Impossible de modifier une réservation annulée.');
-}
-
-  const startDate = dto.startDate ? new Date(dto.startDate) : booking.startDate;
-  const endDate = dto.endDate ? new Date(dto.endDate) : booking.endDate;
-
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-    throw new BadRequestException('Dates invalides.');
-  }
-
-  if (startDate >= endDate) {
-    throw new BadRequestException('Dates invalides.');
-  }
-
-  const adults =
-    dto.adults !== undefined ? dto.adults : booking.adultMeals;
-
-  const children =
-    dto.children !== undefined ? dto.children : booking.childMeals;
-
-  const persons = adults + children;
-
-  if (persons < 1) {
-    throw new BadRequestException(
-      'La réservation doit contenir au moins une personne.',
-    );
-  }
-
-  if (persons > booking.room.roomType.maxCapacity) {
-    throw new BadRequestException(
-      'Le nombre de personnes dépasse la capacité de la chambre.',
-    );
-  }
-
-  const guestPhone =
-    dto.guestPhone !== undefined
-      ? dto.guestPhone.trim() || null
-      : booking.guestPhone;
-
-  const nextMealPlan = dto.mealPlanCode
-    ? await this.prisma.mealPlan.findFirst({
-        where: { code: dto.mealPlanCode as MealPlanCode },
-      })
-    : booking.mealPlan;
-
-  if (dto.mealPlanCode && !nextMealPlan) {
-    throw new BadRequestException('Formule introuvable.');
-  }
-
-  if (nextMealPlan) {
-    const allowedMealPlan = await this.prisma.roomTypeMealPlan.findUnique({
-      where: {
-        roomTypeId_mealPlanId: {
-          roomTypeId: booking.room.roomTypeId,
-          mealPlanId: nextMealPlan.id,
-        },
+    await this.systemLogsService.create({
+      type: SystemLogType.admin_booking_created,
+      bookingGroupId: result.bookingGroupId,
+      message: `Réservation créée via le panel admin. ${selections.length} chambre(s), total ${result.pricing.totalPrice} €.`,
+      metadata: {
+        bookingIds: result.bookingIds,
+        roomIds: result.roomIds,
+        guestName: guestName.trim(),
+        guestEmail: guestEmail.trim().toLowerCase(),
+        paymentStatus,
+        totalPrice: result.pricing.totalPrice,
       },
     });
 
-    if (!allowedMealPlan) {
+    return {
+      success: true,
+      message: 'Réservation admin créée.',
+      bookingIds: result.bookingIds,
+      roomIds: result.roomIds,
+      selectionCount: selections.length,
+      pricing: result.pricing,
+    };
+  }
+
+  async updateBooking(id: string, dto: UpdateAdminBookingDto) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        room: { include: { roomType: true } },
+        mealPlan: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Réservation introuvable.');
+    }
+
+    if (booking.status === BookingStatus.cancelled) {
       throw new BadRequestException(
-        `La formule ${nextMealPlan.name} n'est pas disponible pour cette chambre.`,
+        'Impossible de modifier une réservation annulée.',
       );
     }
-  }
 
-  const overlapping = await this.prisma.booking.findFirst({
-    where: {
-      id: { not: id },
-      roomId: booking.roomId,
-      status: {
-        in: [
-          BookingStatus.pending,
-          BookingStatus.confirmed,
-          BookingStatus.checked_in,
-        ],
+    const previousStatus = booking.status;
+
+    const startDate = dto.startDate ? new Date(dto.startDate) : booking.startDate;
+    const endDate = dto.endDate ? new Date(dto.endDate) : booking.endDate;
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      throw new BadRequestException('Dates invalides.');
+    }
+
+    if (startDate >= endDate) {
+      throw new BadRequestException('Dates invalides.');
+    }
+
+    const adults = dto.adults !== undefined ? dto.adults : booking.adultMeals;
+    const children =
+      dto.children !== undefined ? dto.children : booking.childMeals;
+
+    const persons = adults + children;
+
+    if (persons < 1) {
+      throw new BadRequestException(
+        'La réservation doit contenir au moins une personne.',
+      );
+    }
+
+    if (persons > booking.room.roomType.maxCapacity) {
+      throw new BadRequestException(
+        'Le nombre de personnes dépasse la capacité de la chambre.',
+      );
+    }
+
+    const guestPhone =
+      dto.guestPhone !== undefined
+        ? dto.guestPhone.trim() || null
+        : booking.guestPhone;
+
+    const nextMealPlan = dto.mealPlanCode
+      ? await this.prisma.mealPlan.findFirst({
+          where: { code: dto.mealPlanCode as MealPlanCode },
+        })
+      : booking.mealPlan;
+
+    if (dto.mealPlanCode && !nextMealPlan) {
+      throw new BadRequestException('Formule introuvable.');
+    }
+
+    if (nextMealPlan) {
+      const allowedMealPlan = await this.prisma.roomTypeMealPlan.findUnique({
+        where: {
+          roomTypeId_mealPlanId: {
+            roomTypeId: booking.room.roomTypeId,
+            mealPlanId: nextMealPlan.id,
+          },
+        },
+      });
+
+      if (!allowedMealPlan) {
+        throw new BadRequestException(
+          `La formule ${nextMealPlan.name} n'est pas disponible pour cette chambre.`,
+        );
+      }
+    }
+
+    const overlapping = await this.prisma.booking.findFirst({
+      where: {
+        id: { not: id },
+        roomId: booking.roomId,
+        status: {
+          in: [
+            BookingStatus.pending,
+            BookingStatus.confirmed,
+            BookingStatus.checked_in,
+          ],
+        },
+        startDate: { lt: endDate },
+        endDate: { gt: startDate },
       },
-      startDate: { lt: endDate },
-      endDate: { gt: startDate },
-    },
-  });
+    });
 
-  if (overlapping) {
-    throw new BadRequestException('Conflit avec une autre réservation.');
+    if (overlapping) {
+      throw new BadRequestException('Conflit avec une autre réservation.');
+    }
+
+    const nights = getNights(startDate, endDate);
+    const roomPrice = booking.room.roomType.basePrice * nights;
+
+    const mealPlanPrice = nextMealPlan
+      ? (nextMealPlan.adultPrice * adults + nextMealPlan.childPrice * children) *
+        nights
+      : 0;
+
+    const totalPrice = roomPrice + mealPlanPrice;
+
+    const updatedBooking = await this.prisma.booking.update({
+      where: { id },
+      data: {
+        startDate,
+        endDate,
+
+        persons,
+        adultMeals: adults,
+        childMeals: children,
+
+        status:
+          dto.status !== undefined
+            ? (dto.status as BookingStatus)
+            : booking.status,
+
+        guestPhone,
+
+        notes:
+          dto.notes !== undefined ? dto.notes.trim() || null : booking.notes,
+
+        paymentStatus:
+          dto.paymentStatus !== undefined
+            ? (dto.paymentStatus as PaymentStatus)
+            : booking.paymentStatus,
+
+        paymentNote:
+          dto.paymentNote !== undefined
+            ? dto.paymentNote.trim() || null
+            : booking.paymentNote,
+
+        mealPlanId: nextMealPlan?.id ?? null,
+
+        roomPrice,
+        mealPlanPrice,
+        totalPrice,
+      },
+    });
+
+    const updated = await this.prisma.booking.findUniqueOrThrow({
+      where: { id: updatedBooking.id },
+      include: {
+        room: { include: { roomType: true } },
+        mealPlan: true,
+      },
+    });
+
+    await this.logBookingStatusMove({
+      bookingId: updated.id,
+      bookingGroupId: updated.bookingGroupId,
+      guestName: updated.guestName,
+      previousStatus,
+      nextStatus: updated.status,
+    });
+
+    return mapAdminBooking(updated);
   }
-
-  const nights = getNights(startDate, endDate);
-  const roomPrice = booking.room.roomType.basePrice * nights;
-
-  const mealPlanPrice = nextMealPlan
-    ? (nextMealPlan.adultPrice * adults + nextMealPlan.childPrice * children) *
-      nights
-    : 0;
-
-  const totalPrice = roomPrice + mealPlanPrice;
-
-  const updatedBooking = await this.prisma.booking.update({
-    where: { id },
-    data: {
-      startDate,
-      endDate,
-
-      persons,
-      adultMeals: adults,
-      childMeals: children,
-
-      status:
-        dto.status !== undefined
-          ? (dto.status as BookingStatus)
-          : booking.status,
-
-      guestPhone,
-
-      notes:
-        dto.notes !== undefined ? dto.notes.trim() || null : booking.notes,
-
-      paymentStatus:
-        dto.paymentStatus !== undefined
-          ? (dto.paymentStatus as PaymentStatus)
-          : booking.paymentStatus,
-
-      paymentNote:
-        dto.paymentNote !== undefined
-          ? dto.paymentNote.trim() || null
-          : booking.paymentNote,
-
-      mealPlanId: nextMealPlan?.id ?? null,
-
-      roomPrice,
-      mealPlanPrice,
-      totalPrice,
-    },
-  });
-
-  const updated = await this.prisma.booking.findUniqueOrThrow({
-    where: { id: updatedBooking.id },
-    include: {
-      room: { include: { roomType: true } },
-      mealPlan: true,
-    },
-  });
-
-  return mapAdminBooking(updated);
-}
 
   async cancelBooking(id: string) {
     const booking = await this.prisma.booking.findUnique({
@@ -751,6 +794,21 @@ if (booking.status === BookingStatus.cancelled) {
       where: { id },
       data: {
         status: BookingStatus.cancelled,
+      },
+    });
+
+    await this.systemLogsService.create({
+      type: SystemLogType.admin_booking_deleted,
+      bookingId: cancelledBooking.id,
+      bookingGroupId: booking.bookingGroupId ?? undefined,
+      message: `Réservation supprimée via le panel admin pour ${booking.guestName}.`,
+      metadata: {
+        bookingId: booking.id,
+        bookingGroupId: booking.bookingGroupId,
+        guestName: booking.guestName,
+        guestEmail: booking.guestEmail,
+        previousStatus: booking.status,
+        nextStatus: BookingStatus.cancelled,
       },
     });
 
@@ -942,18 +1000,56 @@ if (booking.status === BookingStatus.cancelled) {
         status: room.status,
       })),
       bookings: bookings.map((booking) => ({
-  id: booking.id,
-  roomId: booking.roomId,
-  roomNumber: booking.room.number,
-  guestName: booking.guestName,
-  startDate: booking.startDate.toISOString(),
-  endDate: booking.endDate.toISOString(),
-  status: booking.status,
-  paymentStatus: booking.paymentStatus,
-  notes: booking.notes,
-  mealPlanName: booking.mealPlan?.name ?? null,
-  totalPrice: booking.totalPrice,
-})),
+        id: booking.id,
+        roomId: booking.roomId,
+        roomNumber: booking.room.number,
+        guestName: booking.guestName,
+        startDate: booking.startDate.toISOString(),
+        endDate: booking.endDate.toISOString(),
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        notes: booking.notes,
+        mealPlanName: booking.mealPlan?.name ?? null,
+        totalPrice: booking.totalPrice,
+      })),
     };
+  }
+
+  private async logBookingStatusMove(input: {
+    bookingId: string;
+    bookingGroupId: string | null;
+    guestName: string;
+    previousStatus: BookingStatus;
+    nextStatus: BookingStatus;
+  }) {
+    if (input.previousStatus === input.nextStatus) return;
+
+    if (input.nextStatus === BookingStatus.checked_in) {
+      await this.systemLogsService.create({
+        type: SystemLogType.booking_check_in,
+        bookingId: input.bookingId,
+        bookingGroupId: input.bookingGroupId ?? undefined,
+        message: `Check-in réservation pour ${input.guestName}.`,
+        metadata: {
+          previousStatus: input.previousStatus,
+          nextStatus: input.nextStatus,
+        },
+      });
+
+      return;
+    }
+
+    if (input.nextStatus === BookingStatus.checked_out) {
+      await this.systemLogsService.create({
+        type: SystemLogType.booking_check_out,
+        bookingId: input.bookingId,
+        bookingGroupId: input.bookingGroupId ?? undefined,
+        message: `Check-out réservation pour ${input.guestName}.`,
+        metadata: {
+          previousStatus: input.previousStatus,
+          nextStatus: input.nextStatus,
+        },
+      });
+    }
   }
 }

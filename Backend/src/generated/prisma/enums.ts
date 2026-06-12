@@ -55,10 +55,13 @@ export const PaymentStatus = {
 export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]
 
 
-export const SystemLogLevel = {
-  info: 'info',
-  warn: 'warn',
-  error: 'error'
+export const SystemLogType = {
+  website_booking_validated: 'website_booking_validated',
+  website_booking_failed: 'website_booking_failed',
+  admin_booking_created: 'admin_booking_created',
+  admin_booking_deleted: 'admin_booking_deleted',
+  booking_check_in: 'booking_check_in',
+  booking_check_out: 'booking_check_out'
 } as const
 
-export type SystemLogLevel = (typeof SystemLogLevel)[keyof typeof SystemLogLevel]
+export type SystemLogType = (typeof SystemLogType)[keyof typeof SystemLogType]

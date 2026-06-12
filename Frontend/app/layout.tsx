@@ -11,7 +11,7 @@ const inter = Inter({
 const heading = Montserrat({
   subsets: ["latin"],
   variable: "--font-heading",
-  weight: ["700", "800"],
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {

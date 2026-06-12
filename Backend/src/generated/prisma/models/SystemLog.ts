@@ -26,28 +26,28 @@ export type AggregateSystemLog = {
 
 export type SystemLogMinAggregateOutputType = {
   id: string | null
-  level: $Enums.SystemLogLevel | null
-  type: string | null
+  type: $Enums.SystemLogType | null
   message: string | null
   bookingId: string | null
+  bookingGroupId: string | null
   createdAt: Date | null
 }
 
 export type SystemLogMaxAggregateOutputType = {
   id: string | null
-  level: $Enums.SystemLogLevel | null
-  type: string | null
+  type: $Enums.SystemLogType | null
   message: string | null
   bookingId: string | null
+  bookingGroupId: string | null
   createdAt: Date | null
 }
 
 export type SystemLogCountAggregateOutputType = {
   id: number
-  level: number
   type: number
   message: number
   bookingId: number
+  bookingGroupId: number
   metadata: number
   createdAt: number
   _all: number
@@ -56,28 +56,28 @@ export type SystemLogCountAggregateOutputType = {
 
 export type SystemLogMinAggregateInputType = {
   id?: true
-  level?: true
   type?: true
   message?: true
   bookingId?: true
+  bookingGroupId?: true
   createdAt?: true
 }
 
 export type SystemLogMaxAggregateInputType = {
   id?: true
-  level?: true
   type?: true
   message?: true
   bookingId?: true
+  bookingGroupId?: true
   createdAt?: true
 }
 
 export type SystemLogCountAggregateInputType = {
   id?: true
-  level?: true
   type?: true
   message?: true
   bookingId?: true
+  bookingGroupId?: true
   metadata?: true
   createdAt?: true
   _all?: true
@@ -157,10 +157,10 @@ export type SystemLogGroupByArgs<ExtArgs extends runtime.Types.Extensions.Intern
 
 export type SystemLogGroupByOutputType = {
   id: string
-  level: $Enums.SystemLogLevel
-  type: string
-  message: string
+  type: $Enums.SystemLogType
+  message: string | null
   bookingId: string | null
+  bookingGroupId: string | null
   metadata: runtime.JsonValue | null
   createdAt: Date
   _count: SystemLogCountAggregateOutputType | null
@@ -188,20 +188,20 @@ export type SystemLogWhereInput = {
   OR?: Prisma.SystemLogWhereInput[]
   NOT?: Prisma.SystemLogWhereInput | Prisma.SystemLogWhereInput[]
   id?: Prisma.StringFilter<"SystemLog"> | string
-  level?: Prisma.EnumSystemLogLevelFilter<"SystemLog"> | $Enums.SystemLogLevel
-  type?: Prisma.StringFilter<"SystemLog"> | string
-  message?: Prisma.StringFilter<"SystemLog"> | string
+  type?: Prisma.EnumSystemLogTypeFilter<"SystemLog"> | $Enums.SystemLogType
+  message?: Prisma.StringNullableFilter<"SystemLog"> | string | null
   bookingId?: Prisma.StringNullableFilter<"SystemLog"> | string | null
+  bookingGroupId?: Prisma.StringNullableFilter<"SystemLog"> | string | null
   metadata?: Prisma.JsonNullableFilter<"SystemLog">
   createdAt?: Prisma.DateTimeFilter<"SystemLog"> | Date | string
 }
 
 export type SystemLogOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  level?: Prisma.SortOrder
   type?: Prisma.SortOrder
-  message?: Prisma.SortOrder
+  message?: Prisma.SortOrderInput | Prisma.SortOrder
   bookingId?: Prisma.SortOrderInput | Prisma.SortOrder
+  bookingGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -211,20 +211,20 @@ export type SystemLogWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.SystemLogWhereInput | Prisma.SystemLogWhereInput[]
   OR?: Prisma.SystemLogWhereInput[]
   NOT?: Prisma.SystemLogWhereInput | Prisma.SystemLogWhereInput[]
-  level?: Prisma.EnumSystemLogLevelFilter<"SystemLog"> | $Enums.SystemLogLevel
-  type?: Prisma.StringFilter<"SystemLog"> | string
-  message?: Prisma.StringFilter<"SystemLog"> | string
+  type?: Prisma.EnumSystemLogTypeFilter<"SystemLog"> | $Enums.SystemLogType
+  message?: Prisma.StringNullableFilter<"SystemLog"> | string | null
   bookingId?: Prisma.StringNullableFilter<"SystemLog"> | string | null
+  bookingGroupId?: Prisma.StringNullableFilter<"SystemLog"> | string | null
   metadata?: Prisma.JsonNullableFilter<"SystemLog">
   createdAt?: Prisma.DateTimeFilter<"SystemLog"> | Date | string
 }, "id">
 
 export type SystemLogOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  level?: Prisma.SortOrder
   type?: Prisma.SortOrder
-  message?: Prisma.SortOrder
+  message?: Prisma.SortOrderInput | Prisma.SortOrder
   bookingId?: Prisma.SortOrderInput | Prisma.SortOrder
+  bookingGroupId?: Prisma.SortOrderInput | Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.SystemLogCountOrderByAggregateInput
@@ -237,169 +237,169 @@ export type SystemLogScalarWhereWithAggregatesInput = {
   OR?: Prisma.SystemLogScalarWhereWithAggregatesInput[]
   NOT?: Prisma.SystemLogScalarWhereWithAggregatesInput | Prisma.SystemLogScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"SystemLog"> | string
-  level?: Prisma.EnumSystemLogLevelWithAggregatesFilter<"SystemLog"> | $Enums.SystemLogLevel
-  type?: Prisma.StringWithAggregatesFilter<"SystemLog"> | string
-  message?: Prisma.StringWithAggregatesFilter<"SystemLog"> | string
+  type?: Prisma.EnumSystemLogTypeWithAggregatesFilter<"SystemLog"> | $Enums.SystemLogType
+  message?: Prisma.StringNullableWithAggregatesFilter<"SystemLog"> | string | null
   bookingId?: Prisma.StringNullableWithAggregatesFilter<"SystemLog"> | string | null
+  bookingGroupId?: Prisma.StringNullableWithAggregatesFilter<"SystemLog"> | string | null
   metadata?: Prisma.JsonNullableWithAggregatesFilter<"SystemLog">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"SystemLog"> | Date | string
 }
 
 export type SystemLogCreateInput = {
   id?: string
-  level?: $Enums.SystemLogLevel
-  type: string
-  message: string
+  type: $Enums.SystemLogType
+  message?: string | null
   bookingId?: string | null
+  bookingGroupId?: string | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type SystemLogUncheckedCreateInput = {
   id?: string
-  level?: $Enums.SystemLogLevel
-  type: string
-  message: string
+  type: $Enums.SystemLogType
+  message?: string | null
   bookingId?: string | null
+  bookingGroupId?: string | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type SystemLogUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  level?: Prisma.EnumSystemLogLevelFieldUpdateOperationsInput | $Enums.SystemLogLevel
-  type?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.EnumSystemLogTypeFieldUpdateOperationsInput | $Enums.SystemLogType
+  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bookingGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type SystemLogUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  level?: Prisma.EnumSystemLogLevelFieldUpdateOperationsInput | $Enums.SystemLogLevel
-  type?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.EnumSystemLogTypeFieldUpdateOperationsInput | $Enums.SystemLogType
+  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bookingGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type SystemLogCreateManyInput = {
   id?: string
-  level?: $Enums.SystemLogLevel
-  type: string
-  message: string
+  type: $Enums.SystemLogType
+  message?: string | null
   bookingId?: string | null
+  bookingGroupId?: string | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type SystemLogUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  level?: Prisma.EnumSystemLogLevelFieldUpdateOperationsInput | $Enums.SystemLogLevel
-  type?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.EnumSystemLogTypeFieldUpdateOperationsInput | $Enums.SystemLogType
+  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bookingGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type SystemLogUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  level?: Prisma.EnumSystemLogLevelFieldUpdateOperationsInput | $Enums.SystemLogLevel
-  type?: Prisma.StringFieldUpdateOperationsInput | string
-  message?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.EnumSystemLogTypeFieldUpdateOperationsInput | $Enums.SystemLogType
+  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   bookingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bookingGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type SystemLogCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  level?: Prisma.SortOrder
   type?: Prisma.SortOrder
   message?: Prisma.SortOrder
   bookingId?: Prisma.SortOrder
+  bookingGroupId?: Prisma.SortOrder
   metadata?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type SystemLogMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  level?: Prisma.SortOrder
   type?: Prisma.SortOrder
   message?: Prisma.SortOrder
   bookingId?: Prisma.SortOrder
+  bookingGroupId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type SystemLogMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
-  level?: Prisma.SortOrder
   type?: Prisma.SortOrder
   message?: Prisma.SortOrder
   bookingId?: Prisma.SortOrder
+  bookingGroupId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
-export type EnumSystemLogLevelFieldUpdateOperationsInput = {
-  set?: $Enums.SystemLogLevel
+export type EnumSystemLogTypeFieldUpdateOperationsInput = {
+  set?: $Enums.SystemLogType
 }
 
 
 
 export type SystemLogSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  level?: boolean
   type?: boolean
   message?: boolean
   bookingId?: boolean
+  bookingGroupId?: boolean
   metadata?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["systemLog"]>
 
 export type SystemLogSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  level?: boolean
   type?: boolean
   message?: boolean
   bookingId?: boolean
+  bookingGroupId?: boolean
   metadata?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["systemLog"]>
 
 export type SystemLogSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
-  level?: boolean
   type?: boolean
   message?: boolean
   bookingId?: boolean
+  bookingGroupId?: boolean
   metadata?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["systemLog"]>
 
 export type SystemLogSelectScalar = {
   id?: boolean
-  level?: boolean
   type?: boolean
   message?: boolean
   bookingId?: boolean
+  bookingGroupId?: boolean
   metadata?: boolean
   createdAt?: boolean
 }
 
-export type SystemLogOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "level" | "type" | "message" | "bookingId" | "metadata" | "createdAt", ExtArgs["result"]["systemLog"]>
+export type SystemLogOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "type" | "message" | "bookingId" | "bookingGroupId" | "metadata" | "createdAt", ExtArgs["result"]["systemLog"]>
 
 export type $SystemLogPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "SystemLog"
   objects: {}
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
-    level: $Enums.SystemLogLevel
-    type: string
-    message: string
+    type: $Enums.SystemLogType
+    message: string | null
     bookingId: string | null
+    bookingGroupId: string | null
     metadata: runtime.JsonValue | null
     createdAt: Date
   }, ExtArgs["result"]["systemLog"]>
@@ -826,10 +826,10 @@ export interface Prisma__SystemLogClient<T, Null = never, ExtArgs extends runtim
  */
 export interface SystemLogFieldRefs {
   readonly id: Prisma.FieldRef<"SystemLog", 'String'>
-  readonly level: Prisma.FieldRef<"SystemLog", 'SystemLogLevel'>
-  readonly type: Prisma.FieldRef<"SystemLog", 'String'>
+  readonly type: Prisma.FieldRef<"SystemLog", 'SystemLogType'>
   readonly message: Prisma.FieldRef<"SystemLog", 'String'>
   readonly bookingId: Prisma.FieldRef<"SystemLog", 'String'>
+  readonly bookingGroupId: Prisma.FieldRef<"SystemLog", 'String'>
   readonly metadata: Prisma.FieldRef<"SystemLog", 'Json'>
   readonly createdAt: Prisma.FieldRef<"SystemLog", 'DateTime'>
 }

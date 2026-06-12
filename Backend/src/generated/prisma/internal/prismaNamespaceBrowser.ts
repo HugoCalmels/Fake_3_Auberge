@@ -187,10 +187,10 @@ export type AdminUserScalarFieldEnum = (typeof AdminUserScalarFieldEnum)[keyof t
 
 export const SystemLogScalarFieldEnum = {
   id: 'id',
-  level: 'level',
   type: 'type',
   message: 'message',
   bookingId: 'bookingId',
+  bookingGroupId: 'bookingGroupId',
   metadata: 'metadata',
   createdAt: 'createdAt'
 } as const

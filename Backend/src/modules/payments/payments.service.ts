@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import {
   BookingStatus,
   PaymentStatus,
-  SystemLogLevel,
+  SystemLogType,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BookingsService } from '../bookings/bookings.service';
@@ -41,80 +41,97 @@ export class PaymentsService {
       await this.bookingsService.createPendingWebsiteBooking(dto);
 
     if (bookingResult.pricing.totalPrice <= 0) {
+      await this.logWebsiteBookingFailed({
+        reason: 'Montant de réservation invalide.',
+        bookingGroupId: bookingResult.bookingGroupId,
+        bookingIds: bookingResult.bookingIds,
+        guestEmail: dto.guestEmail,
+      });
+
       throw new BadRequestException('Le montant de la réservation est invalide.');
     }
 
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 
-    const session = await this.stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: [dto.paymentMethod === 'paypal' ? 'paypal' : 'card'],
-      customer_email: dto.guestEmail.trim().toLowerCase(),
-      client_reference_id: bookingResult.bookingGroupId,
-      success_url: `${frontendUrl}/reservation/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${frontendUrl}/reservation/cancel`,
-      metadata: {
-        bookingGroupId: bookingResult.bookingGroupId,
-        bookingIds: bookingResult.bookingIds.join(','),
-        paymentMethod: dto.paymentMethod,
-      },
-      payment_intent_data: {
+    try {
+      const session = await this.stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: [
+          dto.paymentMethod === 'paypal' ? 'paypal' : 'card',
+        ],
+        customer_email: dto.guestEmail.trim().toLowerCase(),
+        client_reference_id: bookingResult.bookingGroupId,
+        success_url: `${frontendUrl}/reservation/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${frontendUrl}/reservation/cancel`,
         metadata: {
           bookingGroupId: bookingResult.bookingGroupId,
           bookingIds: bookingResult.bookingIds.join(','),
           paymentMethod: dto.paymentMethod,
         },
-      },
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'eur',
-            unit_amount: bookingResult.pricing.totalPrice * 100,
-            product_data: {
-              name: 'Auberge du Montcalm',
-              description: `Réservation · ${bookingResult.selectionCount} chambre(s) · ${bookingResult.pricing.nights} nuit(s)`,
-            },
+        payment_intent_data: {
+          metadata: {
+            bookingGroupId: bookingResult.bookingGroupId,
+            bookingIds: bookingResult.bookingIds.join(','),
+            paymentMethod: dto.paymentMethod,
           },
         },
-      ],
-    });
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'eur',
+              unit_amount: bookingResult.pricing.totalPrice * 100,
+              product_data: {
+                name: 'Auberge du Montcalm',
+                description: `Réservation · ${bookingResult.selectionCount} chambre(s) · ${bookingResult.pricing.nights} nuit(s)`,
+              },
+            },
+          },
+        ],
+      });
 
-    await this.prisma.booking.updateMany({
-      where: {
-        id: {
-          in: bookingResult.bookingIds,
+      await this.prisma.booking.updateMany({
+        where: {
+          id: {
+            in: bookingResult.bookingIds,
+          },
         },
-      },
-      data: {
-        stripeCheckoutSessionId: session.id,
-        paymentNote: `Session Stripe créée : ${session.id}`,
-      },
-    });
+        data: {
+          stripeCheckoutSessionId: session.id,
+          paymentNote: `Session Stripe créée : ${session.id}`,
+        },
+      });
 
-    await this.systemLogsService.create({
-      level: SystemLogLevel.info,
-      type: 'checkout_session_created',
-      message: 'Session Stripe Checkout créée.',
-      metadata: {
-        sessionId: session.id,
-        bookingGroupId: bookingResult.bookingGroupId,
+      this.logger.log(
+        `Session Stripe Checkout créée pour bookingGroupId=${bookingResult.bookingGroupId}`,
+      );
+
+      return {
+        success: true,
+        checkoutUrl: session.url,
+        checkoutSessionId: session.id,
         bookingIds: bookingResult.bookingIds,
         roomIds: bookingResult.roomIds,
-        paymentMethod: dto.paymentMethod,
-        totalPrice: bookingResult.pricing.totalPrice,
-      },
-    });
+        selectionCount: bookingResult.selectionCount,
+        pricing: bookingResult.pricing,
+      };
+    } catch (error) {
+      await this.cancelPendingBookingsAfterWebsiteFailure({
+        bookingIds: bookingResult.bookingIds,
+        paymentNote:
+          'Réservation annulée automatiquement : création session Stripe impossible.',
+      });
 
-    return {
-      success: true,
-      checkoutUrl: session.url,
-      checkoutSessionId: session.id,
-      bookingIds: bookingResult.bookingIds,
-      roomIds: bookingResult.roomIds,
-      selectionCount: bookingResult.selectionCount,
-      pricing: bookingResult.pricing,
-    };
+      await this.logWebsiteBookingFailed({
+        reason: 'Création session Stripe impossible.',
+        bookingGroupId: bookingResult.bookingGroupId,
+        bookingIds: bookingResult.bookingIds,
+        guestEmail: dto.guestEmail,
+        error,
+      });
+
+      throw error;
+    }
   }
 
   async createBookingPaymentIntent(dto: CreateBookingPaymentIntentDto) {
@@ -126,21 +143,48 @@ export class PaymentsService {
       await this.bookingsService.createPendingWebsiteBooking(dto);
 
     if (bookingResult.pricing.totalPrice <= 0) {
+      await this.logWebsiteBookingFailed({
+        reason: 'Montant de réservation invalide.',
+        bookingGroupId: bookingResult.bookingGroupId,
+        bookingIds: bookingResult.bookingIds,
+        guestEmail: dto.guestEmail,
+      });
+
       throw new BadRequestException('Le montant de la réservation est invalide.');
     }
 
-    const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: bookingResult.pricing.totalPrice * 100,
-      currency: 'eur',
-      payment_method_types: ['card'],
-      receipt_email: dto.guestEmail.trim().toLowerCase(),
-      metadata: {
+    let paymentIntent: any;
+
+    try {
+      paymentIntent = await this.stripe.paymentIntents.create({
+        amount: bookingResult.pricing.totalPrice * 100,
+        currency: 'eur',
+        payment_method_types: ['card'],
+        receipt_email: dto.guestEmail.trim().toLowerCase(),
+        metadata: {
+          bookingGroupId: bookingResult.bookingGroupId,
+          bookingIds: bookingResult.bookingIds.join(','),
+          paymentMethod: dto.paymentMethod,
+        },
+        description: `Auberge du Montcalm · ${bookingResult.selectionCount} chambre(s) · ${bookingResult.pricing.nights} nuit(s)`,
+      });
+    } catch (error) {
+      await this.cancelPendingBookingsAfterWebsiteFailure({
+        bookingIds: bookingResult.bookingIds,
+        paymentNote:
+          'Réservation annulée automatiquement : création PaymentIntent Stripe impossible.',
+      });
+
+      await this.logWebsiteBookingFailed({
+        reason: 'Création PaymentIntent Stripe impossible.',
         bookingGroupId: bookingResult.bookingGroupId,
-        bookingIds: bookingResult.bookingIds.join(','),
-        paymentMethod: dto.paymentMethod,
-      },
-      description: `Auberge du Montcalm · ${bookingResult.selectionCount} chambre(s) · ${bookingResult.pricing.nights} nuit(s)`,
-    });
+        bookingIds: bookingResult.bookingIds,
+        guestEmail: dto.guestEmail,
+        error,
+      });
+
+      throw error;
+    }
 
     await this.prisma.booking.updateMany({
       where: {
@@ -154,30 +198,16 @@ export class PaymentsService {
       },
     });
 
-    await this.systemLogsService.create({
-      level: SystemLogLevel.info,
-      type: 'payment_intent_created',
-      message: 'PaymentIntent Stripe créé.',
-      metadata: {
-        paymentIntentId: paymentIntent.id,
-        bookingGroupId: bookingResult.bookingGroupId,
-        bookingIds: bookingResult.bookingIds,
-        roomIds: bookingResult.roomIds,
-        totalPrice: bookingResult.pricing.totalPrice,
-        amountCents: paymentIntent.amount,
-        currency: paymentIntent.currency,
-      },
-    });
+    this.logger.log(
+      `PaymentIntent Stripe créé pour bookingGroupId=${bookingResult.bookingGroupId}`,
+    );
 
     if (!paymentIntent.client_secret) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.error,
-        type: 'payment_intent_missing_client_secret',
-        message: 'Client secret Stripe introuvable après création du PaymentIntent.',
-        metadata: {
-          paymentIntentId: paymentIntent.id,
-          bookingIds: bookingResult.bookingIds,
-        },
+      await this.logWebsiteBookingFailed({
+        reason: 'Client secret Stripe introuvable.',
+        bookingGroupId: bookingResult.bookingGroupId,
+        bookingIds: bookingResult.bookingIds,
+        guestEmail: dto.guestEmail,
       });
 
       throw new BadRequestException('Client secret Stripe introuvable.');
@@ -248,11 +278,16 @@ export class PaymentsService {
       `Confirm PaymentIntent ${paymentIntent.id} - status=${paymentIntent.status}`,
     );
 
+    const bookingIds = this.getBookingIdsFromMetadata(paymentIntent.metadata);
+    const bookingGroupId = this.getBookingGroupIdFromMetadata(
+      paymentIntent.metadata,
+    );
+
     if (paymentIntent.status !== 'succeeded') {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'payment_confirm_failed',
-        message: `Paiement non confirmé par Stripe : ${paymentIntent.status}`,
+      await this.logWebsiteBookingFailed({
+        reason: `Paiement non confirmé par Stripe : ${paymentIntent.status}`,
+        bookingGroupId,
+        bookingIds,
         metadata: {
           paymentIntentId: paymentIntent.id,
           stripeStatus: paymentIntent.status,
@@ -264,16 +299,11 @@ export class PaymentsService {
       );
     }
 
-    const bookingIds = this.getBookingIdsFromMetadata(paymentIntent.metadata);
-    const bookingGroupId = this.getBookingGroupIdFromMetadata(
-      paymentIntent.metadata,
-    );
-
     if (bookingIds.length === 0) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.error,
-        type: 'payment_missing_booking_ids',
-        message: 'Paiement Stripe réussi sans réservation liée.',
+      await this.logWebsiteBookingFailed({
+        reason: 'Paiement Stripe réussi sans réservation liée.',
+        bookingGroupId,
+        bookingIds,
         metadata: {
           paymentIntentId: paymentIntent.id,
         },
@@ -301,15 +331,12 @@ export class PaymentsService {
         });
       }
 
-      await this.systemLogsService.create({
-        level: SystemLogLevel.info,
-        type: 'payment_already_confirmed',
-        message: 'Paiement Stripe déjà confirmé.',
-        metadata: {
-          paymentIntentId: paymentIntent.id,
-          bookingGroupId,
-          bookingIds,
-        },
+      await this.logWebsiteBookingValidatedOnce({
+        bookingGroupId,
+        bookingIds,
+        paymentIntentId: paymentIntent.id,
+        amountCents: paymentIntent.amount,
+        currency: paymentIntent.currency,
       });
 
       return {
@@ -339,18 +366,12 @@ export class PaymentsService {
       `PaymentIntent ${paymentIntent.id} confirmé. Réservations mises à jour : ${result.count}`,
     );
 
-    await this.systemLogsService.create({
-      level: SystemLogLevel.info,
-      type: 'payment_confirmed',
-      message: `Paiement confirmé. ${result.count} réservation(s) validée(s).`,
-      metadata: {
-        paymentIntentId: paymentIntent.id,
-        bookingGroupId,
-        bookingIds,
-        updatedCount: result.count,
-        amount: paymentIntent.amount,
-        currency: paymentIntent.currency,
-      },
+    await this.logWebsiteBookingValidatedOnce({
+      bookingGroupId,
+      bookingIds,
+      paymentIntentId: paymentIntent.id,
+      amountCents: paymentIntent.amount,
+      currency: paymentIntent.currency,
     });
 
     await this.sendBookingConfirmationEmails({
@@ -377,17 +398,14 @@ export class PaymentsService {
     );
 
     const bookingIds = this.getBookingIdsFromMetadata(paymentIntent.metadata);
+    const bookingGroupId = this.getBookingGroupIdFromMetadata(
+      paymentIntent.metadata,
+    );
 
     if (bookingIds.length === 0) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'payment_cancel_missing_booking_ids',
-        message: 'Annulation paiement sans réservation liée.',
-        metadata: {
-          paymentIntentId,
-          stripeStatus: paymentIntent.status,
-        },
-      });
+      this.logger.warn(
+        `Annulation paiement sans réservation liée. paymentIntentId=${paymentIntentId}`,
+      );
 
       return {
         success: true,
@@ -400,17 +418,6 @@ export class PaymentsService {
       paymentIntent.status === 'succeeded' ||
       paymentIntent.status === 'processing'
     ) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'payment_cancel_rejected',
-        message: `Suppression refusée : paiement ${paymentIntent.status}.`,
-        metadata: {
-          paymentIntentId,
-          bookingIds,
-          stripeStatus: paymentIntent.status,
-        },
-      });
-
       throw new BadRequestException(
         `Impossible de supprimer : paiement ${paymentIntent.status}.`,
       );
@@ -436,22 +443,16 @@ export class PaymentsService {
       `PaymentIntent ${paymentIntent.id} annulé. Réservations pending annulées : ${result.count}`,
     );
 
-    for (const bookingId of bookingIds) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'payment_cancelled',
-        message: 'Paiement annulé/refusé. Réservation annulée.',
-        bookingId,
-        metadata: {
-          paymentIntentId: paymentIntent.id,
-          stripeStatus: paymentIntent.status,
-          previousStatus: BookingStatus.pending,
-          newStatus: BookingStatus.cancelled,
-          previousPaymentStatus: PaymentStatus.unpaid,
-          updatedCount: result.count,
-        },
-      });
-    }
+    await this.logWebsiteBookingFailed({
+      reason: 'Paiement annulé/refusé.',
+      bookingGroupId,
+      bookingIds,
+      metadata: {
+        paymentIntentId: paymentIntent.id,
+        stripeStatus: paymentIntent.status,
+        updatedCount: result.count,
+      },
+    });
 
     return {
       success: true,
@@ -467,13 +468,12 @@ export class PaymentsService {
     );
 
     if (bookingIds.length === 0) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.error,
-        type: 'webhook_payment_missing_booking_ids',
-        message: 'Webhook payment_intent.succeeded sans réservation liée.',
+      await this.logWebsiteBookingFailed({
+        reason: 'Webhook Stripe réussi sans réservation liée.',
+        bookingGroupId,
+        bookingIds,
         metadata: {
           paymentIntentId: paymentIntent.id,
-          bookingGroupId,
         },
       });
 
@@ -497,16 +497,17 @@ export class PaymentsService {
         });
       }
 
-      await this.systemLogsService.create({
-        level: SystemLogLevel.info,
-        type: 'webhook_payment_already_confirmed',
-        message: 'Webhook reçu pour un paiement déjà confirmé.',
-        metadata: {
-          paymentIntentId: paymentIntent.id,
-          bookingGroupId,
-          bookingIds,
-        },
+      await this.logWebsiteBookingValidatedOnce({
+        bookingGroupId,
+        bookingIds,
+        paymentIntentId: paymentIntent.id,
+        amountCents: paymentIntent.amount,
+        currency: paymentIntent.currency,
       });
+
+      this.logger.log(
+        `Webhook payment_intent.succeeded ignoré : paiement déjà confirmé. paymentIntentId=${paymentIntent.id}`,
+      );
 
       return;
     }
@@ -526,16 +527,12 @@ export class PaymentsService {
       },
     });
 
-    await this.systemLogsService.create({
-      level: SystemLogLevel.info,
-      type: 'webhook_payment_confirmed',
-      message: `Webhook Stripe payment_intent.succeeded reçu. ${result.count} réservation(s) confirmée(s).`,
-      metadata: {
-        paymentIntentId: paymentIntent.id,
-        bookingGroupId,
-        bookingIds,
-        updatedCount: result.count,
-      },
+    await this.logWebsiteBookingValidatedOnce({
+      bookingGroupId,
+      bookingIds,
+      paymentIntentId: paymentIntent.id,
+      amountCents: paymentIntent.amount,
+      currency: paymentIntent.currency,
     });
 
     await this.sendBookingConfirmationEmails({
@@ -548,16 +545,14 @@ export class PaymentsService {
 
   private async markFailedBookingsFromPaymentIntent(paymentIntent: any) {
     const bookingIds = this.getBookingIdsFromMetadata(paymentIntent.metadata);
+    const bookingGroupId = this.getBookingGroupIdFromMetadata(
+      paymentIntent.metadata,
+    );
 
     if (bookingIds.length === 0) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'payment_failed_missing_booking_ids',
-        message: 'Paiement Stripe refusé sans réservation liée.',
-        metadata: {
-          paymentIntentId: paymentIntent.id,
-        },
-      });
+      this.logger.warn(
+        `Paiement Stripe refusé sans réservation liée. paymentIntentId=${paymentIntent.id}`,
+      );
 
       return;
     }
@@ -576,22 +571,15 @@ export class PaymentsService {
       },
     });
 
-    for (const bookingId of bookingIds) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'payment_failed',
-        message: 'Paiement Stripe refusé. Réservation annulée.',
-        bookingId,
-        metadata: {
-          paymentIntentId: paymentIntent.id,
-          bookingIds,
-          updatedCount: result.count,
-          previousStatus: BookingStatus.pending,
-          newStatus: BookingStatus.cancelled,
-          previousPaymentStatus: PaymentStatus.unpaid,
-        },
-      });
-    }
+    await this.logWebsiteBookingFailed({
+      reason: 'Paiement Stripe refusé.',
+      bookingGroupId,
+      bookingIds,
+      metadata: {
+        paymentIntentId: paymentIntent.id,
+        updatedCount: result.count,
+      },
+    });
   }
 
   private async sendBookingConfirmationEmails(input: {
@@ -667,29 +655,15 @@ export class PaymentsService {
         invoicePdfBase64,
       });
 
-      await this.systemLogsService.create({
-        level: SystemLogLevel.info,
-        type: 'booking_confirmation_emails_sent',
-        message: 'Emails de confirmation réservation envoyés.',
-        metadata: {
-          bookingIds: input.bookingIds,
-          guestEmail: firstBooking.guestEmail,
-          totalPaid,
-          invoiceNumber,
-        },
-      });
+      this.logger.log(
+        `Emails de confirmation envoyés pour bookingGroupId=${input.bookingGroupId}`,
+      );
     } catch (error) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.error,
-        type: 'booking_confirmation_email_failed',
-        message: 'Erreur lors de l’envoi des emails de confirmation.',
-        metadata: {
-          bookingIds: input.bookingIds,
-          guestEmail: firstBooking.guestEmail,
-          invoiceNumber,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
+      this.logger.error(
+        `Erreur lors de l’envoi des emails de confirmation: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
@@ -714,22 +688,90 @@ export class PaymentsService {
       },
     });
 
-    for (const bookingId of bookingIds) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'checkout_session_expired',
-        message: 'Session Stripe expirée. Réservation annulée.',
-        bookingId,
-        metadata: {
-          sessionId: session.id,
-          bookingIds,
-          updatedCount: result.count,
-          previousStatus: BookingStatus.pending,
-          newStatus: BookingStatus.cancelled,
-          previousPaymentStatus: PaymentStatus.unpaid,
+    this.logger.warn(
+      `Session Stripe expirée. Réservations pending annulées : ${result.count}. sessionId=${session.id}`,
+    );
+  }
+
+  private async cancelPendingBookingsAfterWebsiteFailure(input: {
+    bookingIds: string[];
+    paymentNote: string;
+  }) {
+    await this.prisma.booking.updateMany({
+      where: {
+        id: {
+          in: input.bookingIds,
+        },
+        status: BookingStatus.pending,
+        paymentStatus: PaymentStatus.unpaid,
+      },
+      data: {
+        status: BookingStatus.cancelled,
+        paymentNote: input.paymentNote,
+      },
+    });
+  }
+
+  private async logWebsiteBookingValidatedOnce(input: {
+    bookingGroupId: string | null;
+    bookingIds: string[];
+    paymentIntentId: string;
+    amountCents: number;
+    currency: string;
+  }) {
+    if (input.bookingGroupId) {
+      const existingLog = await this.prisma.systemLog.findFirst({
+        where: {
+          type: SystemLogType.website_booking_validated,
+          bookingGroupId: input.bookingGroupId,
+        },
+        select: {
+          id: true,
         },
       });
+
+      if (existingLog) return;
     }
+
+    await this.systemLogsService.create({
+      type: SystemLogType.website_booking_validated,
+      bookingGroupId: input.bookingGroupId ?? undefined,
+      message: `Réservation validée depuis le site. ${input.bookingIds.length} chambre(s), total ${this.formatEurosFromCents(
+        input.amountCents,
+      )}.`,
+      metadata: {
+        paymentIntentId: input.paymentIntentId,
+        bookingIds: input.bookingIds,
+        amount: input.amountCents,
+        currency: input.currency,
+      },
+    });
+  }
+
+  private async logWebsiteBookingFailed(input: {
+    reason: string;
+    bookingGroupId?: string | null;
+    bookingIds?: string[];
+    guestEmail?: string;
+    error?: unknown;
+    metadata?: Record<string, unknown>;
+  }) {
+    await this.systemLogsService.create({
+      type: SystemLogType.website_booking_failed,
+      bookingGroupId: input.bookingGroupId ?? undefined,
+      message: `Réservation depuis le site échouée : ${input.reason}`,
+      metadata: {
+        bookingIds: input.bookingIds ?? [],
+        guestEmail: input.guestEmail?.trim().toLowerCase(),
+        error:
+          input.error instanceof Error
+            ? input.error.message
+            : input.error
+              ? String(input.error)
+              : undefined,
+        ...input.metadata,
+      },
+    });
   }
 
   private getBookingIdsFromSession(session: any) {
@@ -752,5 +794,9 @@ export class PaymentsService {
 
   private getBookingGroupIdFromMetadata(metadata: any) {
     return metadata?.bookingGroupId?.trim() || null;
+  }
+
+  private formatEurosFromCents(amountCents: number) {
+    return `${(amountCents / 100).toFixed(2).replace('.', ',')} €`;
   }
 }

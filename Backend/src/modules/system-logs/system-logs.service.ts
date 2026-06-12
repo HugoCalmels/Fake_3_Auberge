@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, SystemLogLevel } from '../../generated/prisma/client';
+import { Prisma, SystemLogType } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type CreateSystemLogInput = {
-  level?: SystemLogLevel;
-  type: string;
-  message: string;
+  type: SystemLogType;
+  message?: string;
   bookingId?: string;
+  bookingGroupId?: string;
   metadata?: Prisma.InputJsonValue;
 };
 
@@ -20,10 +20,10 @@ export class SystemLogsService {
     try {
       return await this.prisma.systemLog.create({
         data: {
-          level: input.level ?? SystemLogLevel.info,
           type: input.type,
           message: input.message,
           bookingId: input.bookingId,
+          bookingGroupId: input.bookingGroupId,
           metadata: input.metadata,
         },
       });

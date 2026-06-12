@@ -8,10 +8,8 @@ import {
   BookingSource,
   BookingStatus,
   PaymentStatus,
-  SystemLogLevel,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SystemLogsService } from '../system-logs/system-logs.service';
 
 const PENDING_EXPIRATION_MINUTES = 30;
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
@@ -23,10 +21,7 @@ export class PendingBookingsCleanupService
   private readonly logger = new Logger(PendingBookingsCleanupService.name);
   private interval: NodeJS.Timeout | null = null;
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly systemLogsService: SystemLogsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit() {
     this.interval = setInterval(() => {
@@ -52,22 +47,14 @@ export class PendingBookingsCleanupService
         bookingSource: BookingSource.website,
         status: BookingStatus.pending,
         paymentStatus: PaymentStatus.unpaid,
-        stripePaymentIntentId: {
-          not: null,
-        },
         createdAt: {
           lt: expiresBefore,
         },
       },
       select: {
         id: true,
-        guestName: true,
+        bookingGroupId: true,
         guestEmail: true,
-        roomId: true,
-        startDate: true,
-        endDate: true,
-        status: true,
-        paymentStatus: true,
         stripePaymentIntentId: true,
         createdAt: true,
       },
@@ -87,9 +74,6 @@ export class PendingBookingsCleanupService
         bookingSource: BookingSource.website,
         status: BookingStatus.pending,
         paymentStatus: PaymentStatus.unpaid,
-        stripePaymentIntentId: {
-          not: null,
-        },
       },
       data: {
         status: BookingStatus.cancelled,
@@ -98,28 +82,17 @@ export class PendingBookingsCleanupService
     });
 
     this.logger.warn(
-      `Réservations Stripe pending expirées annulées : ${result.count}`,
+      `Cleanup pending website bookings: ${result.count} réservation(s) expirée(s) annulée(s).`,
     );
 
     for (const booking of expiredBookings) {
-      await this.systemLogsService.create({
-        level: SystemLogLevel.warn,
-        type: 'booking_payment_expired',
-        message: `Réservation annulée automatiquement : paiement non finalisé après ${PENDING_EXPIRATION_MINUTES} minutes.`,
-        bookingId: booking.id,
-        metadata: {
-          guestName: booking.guestName,
-          guestEmail: booking.guestEmail,
-          roomId: booking.roomId,
-          startDate: booking.startDate,
-          endDate: booking.endDate,
-          previousStatus: booking.status,
-          newStatus: BookingStatus.cancelled,
-          previousPaymentStatus: booking.paymentStatus,
-          stripePaymentIntentId: booking.stripePaymentIntentId,
-          createdAt: booking.createdAt,
-        },
-      });
+      this.logger.warn(
+        `Réservation pending expirée annulée: bookingId=${booking.id}, bookingGroupId=${
+          booking.bookingGroupId ?? 'none'
+        }, guestEmail=${booking.guestEmail}, stripePaymentIntentId=${
+          booking.stripePaymentIntentId ?? 'none'
+        }, createdAt=${booking.createdAt.toISOString()}`,
+      );
     }
   }
 }

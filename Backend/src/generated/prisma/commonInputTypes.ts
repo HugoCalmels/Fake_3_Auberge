@@ -222,11 +222,11 @@ export type EnumPaymentStatusWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumPaymentStatusFilter<$PrismaModel>
 }
 
-export type EnumSystemLogLevelFilter<$PrismaModel = never> = {
-  equals?: $Enums.SystemLogLevel | Prisma.EnumSystemLogLevelFieldRefInput<$PrismaModel>
-  in?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  notIn?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumSystemLogLevelFilter<$PrismaModel> | $Enums.SystemLogLevel
+export type EnumSystemLogTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.SystemLogType | Prisma.EnumSystemLogTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumSystemLogTypeFilter<$PrismaModel> | $Enums.SystemLogType
 }
 
 export type JsonNullableFilter<$PrismaModel = never> =
@@ -253,14 +253,14 @@ export type JsonNullableFilterBase<$PrismaModel = never> = {
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
 }
 
-export type EnumSystemLogLevelWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.SystemLogLevel | Prisma.EnumSystemLogLevelFieldRefInput<$PrismaModel>
-  in?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  notIn?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumSystemLogLevelWithAggregatesFilter<$PrismaModel> | $Enums.SystemLogLevel
+export type EnumSystemLogTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.SystemLogType | Prisma.EnumSystemLogTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumSystemLogTypeWithAggregatesFilter<$PrismaModel> | $Enums.SystemLogType
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumSystemLogLevelFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumSystemLogLevelFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumSystemLogTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumSystemLogTypeFilter<$PrismaModel>
 }
 
 export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
@@ -511,21 +511,21 @@ export type NestedEnumPaymentStatusWithAggregatesFilter<$PrismaModel = never> = 
   _max?: Prisma.NestedEnumPaymentStatusFilter<$PrismaModel>
 }
 
-export type NestedEnumSystemLogLevelFilter<$PrismaModel = never> = {
-  equals?: $Enums.SystemLogLevel | Prisma.EnumSystemLogLevelFieldRefInput<$PrismaModel>
-  in?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  notIn?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumSystemLogLevelFilter<$PrismaModel> | $Enums.SystemLogLevel
+export type NestedEnumSystemLogTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.SystemLogType | Prisma.EnumSystemLogTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumSystemLogTypeFilter<$PrismaModel> | $Enums.SystemLogType
 }
 
-export type NestedEnumSystemLogLevelWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.SystemLogLevel | Prisma.EnumSystemLogLevelFieldRefInput<$PrismaModel>
-  in?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  notIn?: $Enums.SystemLogLevel[] | Prisma.ListEnumSystemLogLevelFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumSystemLogLevelWithAggregatesFilter<$PrismaModel> | $Enums.SystemLogLevel
+export type NestedEnumSystemLogTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.SystemLogType | Prisma.EnumSystemLogTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.SystemLogType[] | Prisma.ListEnumSystemLogTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumSystemLogTypeWithAggregatesFilter<$PrismaModel> | $Enums.SystemLogType
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumSystemLogLevelFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumSystemLogLevelFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumSystemLogTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumSystemLogTypeFilter<$PrismaModel>
 }
 
 export type NestedJsonNullableFilter<$PrismaModel = never> =

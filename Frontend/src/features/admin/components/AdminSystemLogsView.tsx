@@ -2,13 +2,59 @@
 
 import { useEffect, useState } from "react";
 import { getAdminSystemLogs } from "@/features/admin/api/adminSystemLogs.api";
-import type { AdminSystemLogDto, AdminSystemLogLevel } from "@/features/admin/types";
+import type {
+  AdminSystemLogDto,
+  AdminSystemLogType,
+} from "@/features/admin/types";
 
-export default function AdminSystemLogsView() {
+type Props = {
+  onSelectBooking?: (bookingId: string) => void;
+};
+
+const LOG_CONFIG: Record<
+  AdminSystemLogType,
+  {
+    title: string;
+    badge: string;
+    dot: string;
+  }
+> = {
+  website_booking_validated: {
+    title: "Réservation depuis le site validée",
+    badge: "Réservée",
+    dot: "bg-[#3F51B5]",
+  },
+  website_booking_failed: {
+    title: "Réservation depuis le site échouée",
+    badge: "Échec",
+    dot: "bg-[#D9A520]",
+  },
+  admin_booking_created: {
+    title: "Réservation créée via le panel admin",
+    badge: "Réservée",
+    dot: "bg-[#3F51B5]",
+  },
+  admin_booking_deleted: {
+    title: "Réservation supprimée via le panel admin",
+    badge: "Supprimée",
+    dot: "bg-[#8C1D18]",
+  },
+  booking_check_in: {
+    title: "Check-in réservation",
+    badge: "Arrivé",
+    dot: "bg-[#0B8043]",
+  },
+  booking_check_out: {
+    title: "Check-out réservation",
+    badge: "Parti",
+    dot: "bg-[#616161]",
+  },
+};
+
+export default function AdminSystemLogsView({ onSelectBooking }: Props) {
   const [logs, setLogs] = useState<AdminSystemLogDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -19,22 +65,17 @@ export default function AdminSystemLogsView() {
 
       try {
         const data = await getAdminSystemLogs(150);
-
-        if (!ignore) {
-          setLogs(data);
-        }
+        if (!ignore) setLogs(data);
       } catch (err) {
         if (!ignore) {
           setError(
             err instanceof Error
               ? err.message
-              : "Impossible de charger le journal système.",
+              : "Impossible de charger le journal.",
           );
         }
       } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
+        if (!ignore) setLoading(false);
       }
     }
 
@@ -43,29 +84,18 @@ export default function AdminSystemLogsView() {
     return () => {
       ignore = true;
     };
-  }, [refreshKey]);
+  }, []);
 
   return (
     <section className="overflow-hidden rounded-[22px] border border-[#d8d0c2] bg-white shadow-sm">
-      <div className="flex flex-col gap-4 border-b border-[#e7dfd2] px-5 py-5 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-[#1e1e1e]">
-            Journal système
-          </h2>
+      <div className="border-b border-[#ece5d8] px-5 py-5">
+        <h2 className="text-[2rem] font-semibold leading-none text-[#1e1e1e]">
+          Journal des réservations
+        </h2>
 
-          <p className="mt-2 max-w-[680px] text-sm leading-6 text-[#6c675f]">
-            Suivi des paiements Stripe, réservations, erreurs, nettoyages
-            automatiques et évènements importants.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setRefreshKey((value) => value + 1)}
-          className="w-fit cursor-pointer rounded-full border border-[#d8d0c2] bg-white px-4 py-2 text-sm font-medium text-[#314835] transition hover:bg-[#eee6da]"
-        >
-          Rafraîchir
-        </button>
+        <p className="mt-3 text-sm text-[#6c675f]">
+          Historique simple des actions importantes sur les réservations.
+        </p>
       </div>
 
       {loading ? (
@@ -79,9 +109,14 @@ export default function AdminSystemLogsView() {
           Aucun évènement disponible.
         </div>
       ) : (
-        <div className="divide-y divide-[#efe7db]">
-          {logs.map((log) => (
-            <LogRow key={log.id} log={log} />
+        <div>
+          {logs.map((log, index) => (
+            <LogRow
+              key={log.id}
+              log={log}
+              onSelectBooking={onSelectBooking}
+              hasBorder={index !== logs.length - 1}
+            />
           ))}
         </div>
       )}
@@ -89,89 +124,246 @@ export default function AdminSystemLogsView() {
   );
 }
 
-function LogRow({ log }: { log: AdminSystemLogDto }) {
+function LogRow({
+  log,
+  onSelectBooking,
+  hasBorder,
+}: {
+  log: AdminSystemLogDto;
+  onSelectBooking?: (bookingId: string) => void;
+  hasBorder: boolean;
+}) {
+  const config = LOG_CONFIG[log.type];
+  const date = formatDateParts(log.createdAt);
+  const details = getLogDetails(log);
+  const bookingId = getOpenableBookingId(log);
+
   return (
-    <article className="px-5 py-4">
-      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[150px_minmax(0,1fr)_180px] xl:items-start">
-        <div className="flex items-center gap-2">
-          <LevelBadge level={log.level} />
-        </div>
+    <article
+      className={`group grid w-full gap-5 px-5 py-5 text-left transition hover:bg-[#fcfaf7] xl:grid-cols-[minmax(0,1.5fr)_150px_170px_150px] ${
+        hasBorder ? "border-b border-[#ece5d8]" : ""
+      }`}
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-start gap-3">
+          <span
+            className={`mt-1 h-3 w-3 shrink-0 rounded-[4px] ${config.dot}`}
+          />
 
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-[#1e1e1e]">
-              {formatLogType(log.type)}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[1.05rem] font-semibold text-[#1e1e1e]">
+              {config.title}
             </p>
 
-            <code className="rounded-full bg-[#f7f3ec] px-2 py-1 text-[11px] text-[#756f67]">
-              {log.type}
-            </code>
+            {details.main ? (
+              <p className="mt-2 text-sm leading-6 text-[#4f4a43]">
+                {details.main}
+              </p>
+            ) : null}
+
+            {details.secondary ? (
+              <p className="mt-1 text-sm leading-6 text-[#6c675f]">
+                {details.secondary}
+              </p>
+            ) : null}
           </div>
-
-          <p className="mt-2 text-sm leading-6 text-[#4f4a43]">
-            {log.message}
-          </p>
-
-          {log.bookingId ? (
-            <p className="mt-2 text-xs text-[#8a847b]">
-              Réservation liée :{" "}
-              <span className="font-mono text-[#314835]">{log.bookingId}</span>
-            </p>
-          ) : null}
-
-          {log.metadata ? (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-[#8a847b]">
-                Détails techniques
-              </summary>
-
-              <pre className="mt-2 max-h-[260px] overflow-auto rounded-[14px] border border-[#e8dfd2] bg-[#fcfaf7] p-3 text-xs leading-5 text-[#5f584d]">
-                {JSON.stringify(log.metadata, null, 2)}
-              </pre>
-            </details>
-          ) : null}
         </div>
+      </div>
 
-        <p className="text-left text-xs text-[#8a847b] xl:text-right">
-          {formatDateTime(log.createdAt)}
-        </p>
+      <div className="flex items-start xl:justify-end">
+        <StatusBadge label={config.badge} type={log.type} />
+      </div>
+
+      <div className="xl:text-right">
+        <p className="text-base font-bold text-[#1e1e1e]">{date.date}</p>
+        <p className="mt-1 text-sm font-bold text-[#1e1e1e]">{date.time}</p>
+      </div>
+
+      <div className="flex items-center xl:justify-end">
+        {bookingId && onSelectBooking ? (
+          <button
+            type="button"
+            onClick={() => onSelectBooking(bookingId)}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#d8d0c2] px-4 py-2 text-sm font-medium text-[#314835] transition group-hover:border-[#314835] group-hover:bg-[#faf6ef]"
+          >
+            <span>Ouvrir</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        ) : null}
       </div>
     </article>
   );
 }
 
-function LevelBadge({ level }: { level: AdminSystemLogLevel }) {
-  const styles: Record<AdminSystemLogLevel, string> = {
-    info: "bg-[#dff3e4] text-[#206a3b]",
-    warn: "bg-[#fff1d6] text-[#9a6700]",
-    error: "bg-[#fde4e4] text-[#a12828]",
-  };
-
-  const labels: Record<AdminSystemLogLevel, string> = {
-    info: "Info",
-    warn: "Alerte",
-    error: "Erreur",
-  };
+function StatusBadge({
+  label,
+  type,
+}: {
+  label: string;
+  type: AdminSystemLogType;
+}) {
+  const classes = getBadgeClasses(type);
 
   return (
     <span
-      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${styles[level]}`}
+      className={`inline-flex shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${classes}`}
     >
-      {labels[level]}
+      {label}
     </span>
   );
 }
 
-function formatLogType(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+function getBadgeClasses(type: AdminSystemLogType) {
+  if (
+    type === "website_booking_validated" ||
+    type === "admin_booking_created"
+  ) {
+    return "border-[#3F51B5] bg-[#3F51B5] text-white";
+  }
+
+  if (type === "website_booking_failed") {
+    return "border-[#D9A520] bg-[#D9A520] text-white";
+  }
+
+  if (type === "admin_booking_deleted") {
+    return "border-[#8C1D18] bg-[#8C1D18] text-white";
+  }
+
+  if (type === "booking_check_in") {
+    return "border-[#0B8043] bg-[#0B8043] text-white";
+  }
+
+  return "border-[#616161] bg-[#616161] text-white";
 }
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("fr-FR", {
-    dateStyle: "short",
-    timeStyle: "medium",
-  });
+function getLogDetails(log: AdminSystemLogDto) {
+  const metadata = getMetadata(log);
+
+  const guestName = getString(metadata.guestName);
+  const guestEmail = getString(metadata.guestEmail);
+  const totalPrice = getNumber(metadata.totalPrice);
+  const amount = getNumber(metadata.amount);
+  const bookingIds = getStringArray(metadata.bookingIds);
+  const roomCount = bookingIds.length || undefined;
+  const client = guestName || guestEmail;
+
+  if (log.type === "website_booking_validated") {
+    return {
+      main: formatBookingSummary(roomCount, amount ? amount / 100 : totalPrice),
+      secondary: client ? `Client : ${client}` : "",
+    };
+  }
+
+  if (log.type === "website_booking_failed") {
+    return {
+      main: cleanFailureMessage(log.message),
+      secondary: client ? `Client : ${client}` : "",
+    };
+  }
+
+  if (log.type === "admin_booking_created") {
+    return {
+      main: formatBookingSummary(roomCount, totalPrice),
+      secondary: client ? `Client : ${client}` : "",
+    };
+  }
+
+  if (
+    log.type === "admin_booking_deleted" ||
+    log.type === "booking_check_in" ||
+    log.type === "booking_check_out"
+  ) {
+    return {
+      main: client ? `Client : ${client}` : cleanAdminMessage(log.message),
+      secondary: "",
+    };
+  }
+
+  return {
+    main: cleanAdminMessage(log.message),
+    secondary: "",
+  };
+}
+
+function getOpenableBookingId(log: AdminSystemLogDto) {
+  if (log.bookingId) return log.bookingId;
+
+  const metadata = getMetadata(log);
+  const bookingIds = getStringArray(metadata.bookingIds);
+
+  return bookingIds[0] ?? null;
+}
+
+function formatBookingSummary(roomCount?: number, totalPrice?: number) {
+  const parts: string[] = [];
+
+  if (roomCount) {
+    parts.push(`${roomCount} chambre${roomCount > 1 ? "s" : ""}`);
+  }
+
+  if (typeof totalPrice === "number") {
+    parts.push(formatPrice(totalPrice));
+  }
+
+  return parts.join(" • ");
+}
+
+function cleanFailureMessage(message?: string | null) {
+  if (!message) return "";
+
+  return message
+    .replace("Réservation depuis le site échouée :", "Cause :")
+    .trim();
+}
+
+function cleanAdminMessage(message?: string | null) {
+  if (!message) return "";
+
+  return message
+    .replace("Réservation créée via le panel admin.", "")
+    .replace("Réservation supprimée via le panel admin", "Suppression")
+    .trim();
+}
+
+function getMetadata(log: AdminSystemLogDto) {
+  if (!log.metadata || typeof log.metadata !== "object") {
+    return {} as Record<string, unknown>;
+  }
+
+  return log.metadata as Record<string, unknown>;
+}
+
+function getString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function getNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function getStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function formatDateParts(value: string) {
+  const date = new Date(value);
+
+  return {
+    date: date.toLocaleDateString("fr-FR"),
+    time: date.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  };
+}
+
+function formatPrice(value: number) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+  }).format(value);
 }
