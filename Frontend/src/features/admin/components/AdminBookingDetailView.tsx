@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAdminBookingDetails } from "@/features/admin/hooks/useAdminBookingDetails";
 import { getBookingAvailability } from "@/features/booking/api/bookings.api";
 import type { MealPlanCode } from "@/features/booking/api/bookings.api";
+import { getAdminRoomTypeImageSrc } from "@/features/admin/api/adminRoomTypes.api";
 import type {
   AdminBookingDetailDto,
   AdminBookingStatus,
@@ -11,6 +12,7 @@ import type {
   AdminRoomDto,
   AdminRoomTypeDto,
 } from "@/features/admin/types";
+import { downloadAdminBookingInvoicePdf } from "../api/adminBookings.api";
 
 type BookingAvailabilityResponse = Awaited<
   ReturnType<typeof getBookingAvailability>
@@ -32,13 +34,15 @@ type Props = {
   onUpdated: (booking: AdminBookingDetailDto) => Promise<void> | void;
 };
 
+const WARNING_COLOR = "bg-[#F6BF26]";
+
 const BOOKING_STATUS_OPTIONS: Array<{
   value: AdminBookingStatus;
   label: string;
 }> = [
   { value: "confirmed", label: "Réservée" },
-  { value: "checked_in", label: "Arrivé (checkin)" },
-  { value: "checked_out", label: "Parti (checkout)" },
+  { value: "checked_in", label: "Arrivé" },
+  { value: "checked_out", label: "Parti" },
   { value: "no_show", label: "Pas venu" },
 ];
 
@@ -67,7 +71,6 @@ export default function AdminBookingDetailView({
     notes,
     guestPhone,
     paymentStatus,
-    paymentNote,
     mealPlanCode,
     status,
     newRoomId,
@@ -79,7 +82,6 @@ export default function AdminBookingDetailView({
     setNotes,
     setGuestPhone,
     setPaymentStatus,
-    setPaymentNote,
     setMealPlanCode,
     setStatus,
     setNewRoomId,
@@ -95,6 +97,18 @@ export default function AdminBookingDetailView({
   const [offers, setOffers] = useState<AdminRoomAvailability[]>([]);
   const [availabilityError, setAvailabilityError] = useState("");
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+
+  const savedStatus = booking?.status ?? status;
+  const savedStartDate = booking?.startDate ?? startDate;
+  const savedEndDate = booking?.endDate ?? endDate;
+
+  const savedWarningReason = useMemo(() => {
+    return getBookingWarningReason({
+      status: savedStatus,
+      startDate: savedStartDate,
+      endDate: savedEndDate,
+    });
+  }, [savedStatus, savedStartDate, savedEndDate]);
 
   const nights = useMemo(() => {
     if (!startDate || !endDate) return 0;
@@ -146,6 +160,8 @@ export default function AdminBookingDetailView({
   const displayedRoomNumber = selectedRoom?.number ?? booking?.roomNumber ?? "—";
   const displayedRoomType =
     selectedRoomType?.name ?? booking?.roomTypeName ?? "Type inconnu";
+
+  const displayedRoomImageUrl = selectedRoomType?.imageUrl ?? "";
 
   useEffect(() => {
     if (!booking) return;
@@ -362,18 +378,38 @@ export default function AdminBookingDetailView({
                       </div>
                     </div>
 
-                    <div>
+                    <div className="xl:border-l xl:border-[#ece5d8] xl:pl-6">
                       <label className="mb-2 block text-sm font-medium text-[#1e1e1e]">
-                        Note de paiement
+                        Facture
                       </label>
 
-                      <TextArea
-                        value={paymentNote}
-                        onChange={setPaymentNote}
-                        rows={3}
-                        placeholder="Optionnel"
-                        disabled={busy}
-                      />
+                      <button
+                        type="button"
+                        disabled={busy || paymentStatus !== "paid"}
+                        onClick={() =>
+                          void downloadAdminBookingInvoicePdf(safeBookingId)
+                        }
+                        className="flex w-full max-w-[360px] items-center justify-between gap-4 rounded-2xl border border-[#d8d0c2] bg-[#fcfaf7] px-4 py-3 text-left transition hover:border-[#314835] hover:bg-[#faf6ef] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d8d0c2] bg-white text-xs font-bold text-[#314835]">
+                            PDF
+                          </span>
+
+                          <span>
+                            <span className="block text-sm font-semibold text-[#314835]">
+                              Télécharger la facture
+                            </span>
+                            <span className="mt-0.5 block text-xs text-[#8a847b]">
+                              Format PDF
+                            </span>
+                          </span>
+                        </span>
+
+                        <span className="text-xl leading-none text-[#314835]">
+                          ↓
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </section>
@@ -390,9 +426,19 @@ export default function AdminBookingDetailView({
                     <article className="rounded-[22px] border border-[#d8d0c2] bg-[#fcfaf7] p-4">
                       <div className="grid gap-4 xl:grid-cols-[130px_minmax(0,1fr)_120px]">
                         <div className="aspect-square overflow-hidden rounded-[16px] border border-[#ddd4c6] bg-[#f3eee6]">
-                          <div className="flex h-full w-full items-center justify-center text-xs text-[#8a847b]">
-                            Image
-                          </div>
+                          {displayedRoomImageUrl ? (
+                            <img
+                              src={getAdminRoomTypeImageSrc(
+                                displayedRoomImageUrl,
+                              )}
+                              alt={displayedRoomType}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xs text-[#8a847b]">
+                              Image
+                            </div>
+                          )}
                         </div>
 
                         <div className="min-w-0">
@@ -563,7 +609,10 @@ export default function AdminBookingDetailView({
                 <SectionTitle eyebrow="Résumé" title="Vue d’ensemble" />
 
                 <div className="mt-4 space-y-4 rounded-[20px] border border-[#e3dbcf] bg-white p-4">
-                  <StatusSummary status={status} />
+                  <StatusSummary
+                    status={savedStatus}
+                    warningReason={savedWarningReason}
+                  />
 
                   <SummaryRow label="Client" value={guestName || "à définir"} />
                   <SummaryRow label="Email" value={guestEmail || "à définir"} />
@@ -573,11 +622,15 @@ export default function AdminBookingDetailView({
                   />
                   <SummaryRow
                     label="Arrivée"
-                    value={startDate ? formatHumanDate(startDate) : "à définir"}
+                    value={
+                      savedStartDate ? formatHumanDate(savedStartDate) : "à définir"
+                    }
                   />
                   <SummaryRow
                     label="Départ"
-                    value={endDate ? formatHumanDate(endDate) : "à définir"}
+                    value={
+                      savedEndDate ? formatHumanDate(savedEndDate) : "à définir"
+                    }
                   />
                   <SummaryRow
                     label="Durée"
@@ -599,9 +652,6 @@ export default function AdminBookingDetailView({
                     value={getPaymentStatusLabel(paymentStatus)}
                   />
 
-                  {paymentNote.trim() ? (
-                    <InfoBlock title="Note paiement">{paymentNote}</InfoBlock>
-                  ) : null}
                   {notes.trim() ? (
                     <InfoBlock title="Notes internes">{notes}</InfoBlock>
                   ) : null}
@@ -609,7 +659,7 @@ export default function AdminBookingDetailView({
 
                 <div className="mt-5 rounded-[20px] border border-[#e3dbcf] bg-white p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a847b]">
-                    Total estimé
+                    Total séjour
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-[#2d2c29]">
                     {estimatedTotalPrice} €
@@ -691,7 +741,15 @@ function StatusDropdown({
         onClick={() => setOpen((value) => !value)}
         className="flex h-[42px] min-w-[172px] items-center justify-between gap-3 rounded-xl border border-[#d8d0c2] bg-white px-4 text-sm font-medium text-[#314835] transition hover:bg-[#faf6ef] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <span>{getBookingStatusLabel(status)}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className={`h-3 w-3 shrink-0 rounded-[4px] ${getStatusBarColor(
+              status,
+            )}`}
+          />
+          <span className="truncate">{getBookingStatusLabel(status)}</span>
+        </span>
+
         <span className="text-xs text-[#8a847b]">▾</span>
       </button>
 
@@ -712,12 +770,18 @@ function StatusDropdown({
                   : "text-[#314835]"
               }`}
             >
-              <span>{option.label}</span>
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${getStatusBarColor(
-                  option.value,
-                )}`}
-              />
+              <span className="flex items-center gap-2">
+                <span
+                  className={`h-3 w-3 rounded-[4px] ${getStatusBarColor(
+                    option.value,
+                  )}`}
+                />
+                {option.label}
+              </span>
+
+              {status === option.value ? (
+                <span className="text-[#314835]">✓</span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -726,20 +790,47 @@ function StatusDropdown({
   );
 }
 
-function StatusSummary({ status }: { status: AdminBookingStatus }) {
+function StatusSummary({
+  status,
+  warningReason,
+}: {
+  status: AdminBookingStatus;
+  warningReason: string | null;
+}) {
   return (
     <div className="border-b border-[#f0ebe2] pb-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a847b]">
         Statut du séjour
       </p>
-      <p className="mt-1 text-sm font-semibold text-[#1e1e1e]">
-        {getBookingStatusLabel(status)}
+
+      <div className="mt-2 space-y-3">
+        <StatusLine
+          color={getStatusBarColor(status)}
+          label={getBookingStatusLabel(status)}
+        />
+
+        {warningReason ? (
+          <>
+            <StatusLine color={WARNING_COLOR} label="À vérifier" />
+            <div className="mt-3 rounded-xl bg-[#fff8e1] px-3 py-2 text-[11px] leading-4 text-[#6f4d00]">
+              <p className="font-semibold">Pourquoi ?</p>
+              <p className="mt-1">{warningReason}</p>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function StatusLine({ color, label }: { color: string; label: string }) {
+  return (
+    <div>
+      <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1e1e1e]">
+        <span className={`h-3 w-3 rounded-[4px] ${color}`} />
+        {label}
       </p>
-      <div
-        className={`mt-2 h-2 w-[100px] rounded-full transition-colors ${getStatusBarColor(
-          status,
-        )}`}
-      />
+      <div className={`mt-2 h-2 w-[100px] rounded-full ${color}`} />
     </div>
   );
 }
@@ -883,7 +974,7 @@ function InfoBlock({
 }
 
 function formatHumanDate(value: string) {
-  return new Date(value).toLocaleDateString("fr-FR", {
+  return inputDateToLocalDate(value).toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -908,8 +999,57 @@ function getStatusBarColor(status: AdminBookingStatus) {
   if (status === "checked_out") return "bg-[#616161]";
   if (status === "no_show") return "bg-[#D96A3A]";
   if (status === "cancelled") return "bg-[#B91C1C]";
-  if (status === "pending") return "bg-[#F6BF26]";
+  if (status === "pending") return WARNING_COLOR;
   return "bg-[#3F51B5]";
+}
+
+function getBookingWarningReason({
+  status,
+  startDate,
+  endDate,
+}: {
+  status: AdminBookingStatus;
+  startDate: string;
+  endDate: string;
+}) {
+  if (!startDate || !endDate) return null;
+
+  const today = stripTime(new Date());
+  const start = inputDateToLocalDate(startDate);
+  const end = inputDateToLocalDate(endDate);
+
+  if (status === "pending") {
+    return "La réservation est encore en attente de confirmation.";
+  }
+
+  if (status === "confirmed" && start <= today && end > today) {
+    return "Le séjour a commencé ou commence aujourd’hui, mais le client n’est pas encore marqué comme arrivé.";
+  }
+
+  if (status === "confirmed" && end <= today) {
+    return "Le jour de départ est atteint ou dépassé, mais la réservation est toujours au statut réservée.";
+  }
+
+  if (status === "checked_in" && end <= today) {
+    return "Le jour de départ est atteint ou dépassé, mais le client n’est pas encore marqué comme parti.";
+  }
+
+  if (status === "checked_in" && start > today) {
+    return "Le client est marqué comme arrivé alors que la date d’arrivée est encore future.";
+  }
+
+  return null;
+}
+
+function inputDateToLocalDate(value: string) {
+  const normalized = value.slice(0, 10);
+  const [year, month, day] = normalized.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
+function stripTime(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function getMealPlanLabel(value: MealPlanCode) {
@@ -934,8 +1074,8 @@ function getMealPlanOptions(offer: AdminRoomAvailability | null) {
 }
 
 function getNights(startDate: string, endDate: string) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = inputDateToLocalDate(startDate);
+  const end = inputDateToLocalDate(endDate);
 
   return Math.max(
     0,

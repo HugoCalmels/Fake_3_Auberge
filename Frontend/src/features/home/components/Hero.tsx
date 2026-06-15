@@ -7,10 +7,10 @@ type HeroProps = {
 
 export default function Hero({ openBooking }: HeroProps) {
   return (
-    <section className="relative h-[88svh] min-h-[680px] overflow-visible bg-black">
+    <section className="relative mb-[165px] h-[88svh] min-h-[680px] overflow-visible bg-black md:mb-[70px]">
       <Image
         src="/images/test2323DD.webp"
-        alt="Auberge du Montcalm"
+        alt="Auberge du Fauxcalm"
         fill
         priority
         className="object-cover"
@@ -21,16 +21,16 @@ export default function Hero({ openBooking }: HeroProps) {
 
       <div className="pointer-events-none absolute inset-0 z-10">
         <div className="mx-auto h-full w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <div className="flex h-full items-center pb-[96px]">
-            <div className="max-w-[500px]">
+          <div className="flex h-full items-center pb-[96px] pt-[76px] md:pb-[64px] md:pt-0">
+            <div className="max-w-[720px]">
               <h1
                 className="uppercase"
                 style={{
                   fontFamily: "var(--font-heading), sans-serif",
-                  fontSize: "clamp(3.2rem, 4.5vw, 5rem)",
+                  fontSize: "clamp(3.4rem, 15vw, 6.8rem)",
                   fontWeight: 800,
-                  lineHeight: 0.98,
-                  letterSpacing: "-0.03em",
+                  lineHeight: 0.92,
+                  letterSpacing: "-0.04em",
                   color: "#f3ede3",
                   textShadow: "0 2px 12px rgba(0,0,0,0.18)",
                 }}
@@ -41,7 +41,7 @@ export default function Hero({ openBooking }: HeroProps) {
               </h1>
 
               <p
-                className="mt-5 max-w-[460px] text-[18px] leading-8"
+                className="mt-4 max-w-[560px] text-[23px] leading-8 md:mt-6 md:text-[24px] md:leading-9"
                 style={{
                   color: "#efe8db",
                   textShadow: "0 1px 8px rgba(0,0,0,0.14)",

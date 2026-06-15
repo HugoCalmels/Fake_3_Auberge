@@ -34,6 +34,7 @@ export default function AdminReservationsWorkspace({
     roomTypes,
     bookings,
     stats,
+statsLoading,
 
     bootLoading,
     bootError,
@@ -55,7 +56,7 @@ export default function AdminReservationsWorkspace({
 
   if (bootLoading) {
     return (
-      <div className="rounded-[22px] border border-[#d8d0c2] bg-white p-6 shadow-sm">
+      <div className="mb-12 rounded-[22px] border border-[#d8d0c2] bg-white p-6 shadow-sm">
         Chargement de l&apos;interface admin...
       </div>
     );
@@ -63,7 +64,7 @@ export default function AdminReservationsWorkspace({
 
   if (bootError) {
     return (
-      <div className="rounded-[22px] border border-[#e2c1c1] bg-white p-6 shadow-sm">
+      <div className="mb-12 rounded-[22px] border border-[#e2c1c1] bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold text-[#1e1e1e]">Erreur</h2>
         <p className="mt-2 text-sm text-red-700">{bootError}</p>
       </div>
@@ -71,7 +72,7 @@ export default function AdminReservationsWorkspace({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-16">
       <div className="overflow-hidden rounded-[22px] border border-[#d8d0c2] bg-white shadow-sm">
         <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
@@ -102,7 +103,7 @@ export default function AdminReservationsWorkspace({
           }}
         />
 
-        <main className="min-w-0">
+        <main className="min-w-0 pb-10">
           {!selectedBookingId && panel === "reservations-planning" ? (
             <AdminReservationPlanningView
               rooms={rooms}
@@ -149,9 +150,15 @@ export default function AdminReservationsWorkspace({
             />
           ) : null}
 
-          {!selectedBookingId && panel === "stats" ? (
-            <AdminStatsPanel stats={stats} />
-          ) : null}
+{!selectedBookingId && panel === "stats" ? (
+  statsLoading || !stats ? (
+    <div className="rounded-[22px] border border-[#d8d0c2] bg-white p-6 text-sm text-[#6c675f] shadow-sm">
+      Chargement des statistiques...
+    </div>
+  ) : (
+    <AdminStatsPanel stats={stats} />
+  )
+) : null}
 
           {!selectedBookingId && panel === "system-logs" ? (
             <AdminSystemLogsView onSelectBooking={setSelectedBookingId} />

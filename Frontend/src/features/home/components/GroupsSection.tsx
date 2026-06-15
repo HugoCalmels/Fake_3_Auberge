@@ -5,11 +5,26 @@ type GroupsSectionProps = {
 export default function GroupsSection({
   keepNavbarVisible,
 }: GroupsSectionProps) {
+  function scrollToContact(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+
+    keepNavbarVisible();
+
+    const contactSection = document.getElementById("contact");
+
+    if (!contactSection) return;
+
+    contactSection.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   return (
     <section id="groupes" className="bg-[#314835]">
-      <div className="mx-auto max-w-[1280px] px-4 pt-24 pb-20 sm:px-6 lg:px-8 lg:pt-28 lg:pb-24">
+      <div className="mx-auto max-w-[1280px] px-4 pb-20 pt-24 sm:px-6 lg:px-8 lg:pb-24 lg:pt-28">
         <div className="max-w-[860px]">
-          <h2 className="!text-[#f4efe7] text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-5xl">
+          <h2 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] !text-[#f4efe7] sm:text-5xl">
             Groupes
           </h2>
 
@@ -39,8 +54,8 @@ export default function GroupsSection({
           <div className="mt-10">
             <a
               href="#contact"
-              onClick={keepNavbarVisible}
-              className="inline-flex items-center rounded-full border border-[#d8d0c2]/30 bg-[#f4efe7] px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#314835] transition hover:bg-white"
+              onClick={scrollToContact}
+              className="inline-flex items-center rounded-full bg-[#eee6da] px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#314835] shadow-sm transition-all duration-300 hover:bg-[#e3d8c9]"
             >
               Nous contacter
             </a>

@@ -20,10 +20,14 @@ export default function BookingStepBar({ step }: { step: BookingStep }) {
         ))}
       </div>
 
-      <div className="mt-3 grid w-full grid-cols-3 items-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a847b]">
+      <div className="mt-3 hidden w-full grid-cols-3 items-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a847b] sm:grid">
         <span className="text-left">Dates</span>
         <span className="text-center">Chambres</span>
         <span className="text-right">Paiement</span>
+      </div>
+
+      <div className="mt-2 text-center text-[12px] font-medium text-[#8a847b] sm:hidden">
+        Étape {step} / 3
       </div>
     </div>
   );

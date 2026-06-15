@@ -25,13 +25,51 @@ const GRID_BORDER = "border-[#d8ccba]";
 const DEFAULT_CELL_BORDER = `border-b border-r ${GRID_BORDER}`;
 const PAST_CELL_BORDER = "border-b border-r border-[#c8bba8]";
 
+const TODAY_CELL_BG = "bg-[#d2e0cf]";
+const TODAY_CELL_BORDER = "border-b border-r border-[#abc1a9]";
+const TODAY_CELL_HOVER = "hover:bg-[#bed3ba]";
+const FUTURE_CELL_HOVER = "hover:bg-[#eadfcd]";
+
+const STATUS_HELP_ITEMS = [
+  {
+    color: "bg-[#3F51B5]",
+    label: "Réservée",
+    description: "Réservation confirmée, client attendu.",
+  },
+  {
+    color: "bg-[#0B8043]",
+    label: "Arrivé",
+    description: "Client marqué comme arrivé.",
+  },
+  {
+    color: "bg-[#616161]",
+    label: "Parti",
+    description: "Client marqué comme parti.",
+  },
+  {
+    color: "bg-[#F4511E]",
+    label: "Pas venu",
+    description: "Client marqué comme no-show.",
+  },
+  {
+    color: "bg-[#F6BF26]",
+    label: "À vérifier",
+    description:
+      "Action humaine probablement nécessaire : réservation non confirmée, arrivée non marquée, départ non clôturé ou incohérence.",
+  },
+];
+
 export default function AdminReservationPlanningView({
   rooms,
   roomTypes,
   onSelectBooking,
   refreshKey,
 }: Props) {
-  const [rangeStart, setRangeStart] = useState(getTodayInputDate());
+  const today = getTodayInputDate();
+
+  const [rangeStart, setRangeStart] = useState(() =>
+    getWeekStartInputDate(today),
+  );
   const [planning, setPlanning] = useState<AdminPlanningResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -90,8 +128,8 @@ export default function AdminReservationPlanningView({
   }
 
   function openGenericCreate() {
-    setCreateStartDate(rangeStart);
-    setCreateEndDate(addDaysToInputDate(rangeStart, 1));
+    setCreateStartDate(today);
+    setCreateEndDate(addDaysToInputDate(today, 1));
     setCreateRoomId("");
     setLockRoom(false);
     setCreateOpen(true);
@@ -108,10 +146,6 @@ export default function AdminReservationPlanningView({
         <div className="border-b border-[#d8ccba] bg-white px-5 py-5">
           <div className="mb-4">
             <h2 className="text-2xl font-semibold text-[#1e1e1e]">Planning</h2>
-            <p className="mt-2 max-w-[640px] text-sm leading-6 text-[#6c675f]">
-              Clique une case vide pour créer une réservation sur la bonne
-              chambre et la bonne date.
-            </p>
           </div>
 
           <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[1fr_auto_1fr] xl:items-center">
@@ -134,7 +168,7 @@ export default function AdminReservationPlanningView({
 
               <button
                 type="button"
-                onClick={() => setRangeStart(getTodayInputDate())}
+                onClick={() => setRangeStart(getWeekStartInputDate(today))}
                 className="cursor-pointer rounded-full border border-[#d8d0c2] bg-white px-4 py-2 text-sm font-medium text-[#314835] transition hover:bg-[#eee6da]"
               >
                 Aujourd’hui
@@ -170,6 +204,7 @@ export default function AdminReservationPlanningView({
             <LegendItem color="bg-[#616161]" label="Parti" />
             <LegendItem color="bg-[#F4511E]" label="Pas venu" />
             <LegendItem color="bg-[#F6BF26]" label="À vérifier" />
+            <StatusHelpPopover />
           </div>
         </div>
 
@@ -186,28 +221,34 @@ export default function AdminReservationPlanningView({
         ) : (
           <div className="overflow-x-auto">
             <div
-              className="grid min-w-[980px]"
+              className="grid w-full min-w-[980px]"
               style={{
-                gridTemplateColumns: `220px repeat(${visibleDays.length}, minmax(108px, 1fr))`,
+                gridTemplateColumns: `180px repeat(${visibleDays.length}, minmax(108px, 1fr))`,
               }}
             >
               <div className="sticky left-0 z-10 border-b border-r border-[#d8ccba] bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#756f67]">
                 Chambres
               </div>
 
-              {visibleDays.map((day) => (
-                <div
-                  key={day}
-                  className="border-b border-r border-[#d8ccba] bg-white px-2 py-3 text-center"
-                >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#756f67]">
-                    {formatWeekdayHeader(day)}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#1e1e1e]">
-                    {formatDayHeader(day)}
-                  </p>
-                </div>
-              ))}
+              {visibleDays.map((day, index) => {
+                const isLastColumn = index === visibleDays.length - 1;
+
+                return (
+                  <div
+                    key={day}
+                    className={`border-b border-[#d8ccba] bg-white px-2 py-3 text-center ${
+                      isLastColumn ? "" : "border-r"
+                    }`}
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#756f67]">
+                      {formatWeekdayHeader(day)}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#1e1e1e]">
+                      {formatDayHeader(day)}
+                    </p>
+                  </div>
+                );
+              })}
 
               {planning.rooms.map((room) => {
                 const roomBookings = planning.bookings.filter(
@@ -219,6 +260,7 @@ export default function AdminReservationPlanningView({
                     key={room.id}
                     room={room}
                     days={visibleDays}
+                    today={today}
                     bookings={roomBookings}
                     onSelectBooking={onSelectBooking}
                     onCreateAtCell={(day) => openCreateFromGrid(day, room.id)}
@@ -248,12 +290,14 @@ export default function AdminReservationPlanningView({
 function GridRow({
   room,
   days,
+  today,
   bookings,
   onSelectBooking,
   onCreateAtCell,
 }: {
   room: AdminPlanningResponse["rooms"][number];
   days: string[];
+  today: string;
   bookings: AdminPlanningResponse["bookings"];
   onSelectBooking: (bookingId: string) => void;
   onCreateAtCell: (day: string) => void;
@@ -262,17 +306,17 @@ function GridRow({
     <>
       <div className="sticky left-0 z-10 border-b border-r border-[#d8ccba] bg-white px-4 py-3">
         <p className="text-lg font-semibold text-[#1e1e1e]">{room.number}</p>
-        <p className="text-sm text-[#6c675f]">
-          {room.roomTypeName ?? "—"} • étage {room.floor}
-        </p>
+        <p className="text-sm text-[#6c675f]">{room.roomTypeName ?? "—"}</p>
       </div>
 
-      {days.map((day) => {
+      {days.map((day, index) => {
         const booking = bookings.find((item) =>
           isDayInsideBooking(day, item.startDate, item.endDate),
         );
 
         const isPast = isPastDay(day);
+        const isToday = day === today;
+        const isLastColumn = index === days.length - 1;
 
         if (booking) {
           const segment = getBookingSegment(
@@ -293,10 +337,11 @@ function GridRow({
             isDayInsideBooking(nextDay, booking.startDate, booking.endDate);
 
           const startsBeforeVisibleRange =
-            day === days[0] && booking.startDate < day;
+            day === days[0] && normalizeInputDate(booking.startDate) < day;
 
           const endsAfterVisibleRange =
-            day === days[days.length - 1] && booking.endDate > nextDay;
+            day === days[days.length - 1] &&
+            normalizeInputDate(booking.endDate) > nextDay;
 
           const isFirstVisibleSegment =
             !continuesFromPreviousVisibleDay && !startsBeforeVisibleRange;
@@ -304,7 +349,8 @@ function GridRow({
           const isLastVisibleSegment =
             !continuesToNextVisibleDay && !endsAfterVisibleRange;
 
-          const hasDateWarning = isBookingDateWarning(booking);
+          const warningReason = getBookingWarningReason(booking);
+          const hasDateWarning = Boolean(warningReason);
           const colors = getBookingColors(booking.status, hasDateWarning);
           const paymentStatus = getBookingPaymentStatus(booking);
 
@@ -312,11 +358,13 @@ function GridRow({
             <div
               key={`${room.id}-${day}`}
               className={`min-h-[72px] border-b ${
-                isLastVisibleSegment ? "border-r" : ""
+                isLastVisibleSegment && !isLastColumn ? "border-r" : ""
               } ${
                 isPast
                   ? "border-[#c8bba8] bg-[#e8e8e8]"
-                  : "border-[#d8ccba] bg-white"
+                  : isToday
+                    ? "border-[#abc1a9] bg-[#e5eee4]"
+                    : "border-[#d8ccba] bg-white"
               } ${getBookingCellPaddingClass(
                 isFirstVisibleSegment,
                 isLastVisibleSegment,
@@ -329,7 +377,11 @@ function GridRow({
                   isFirstVisibleSegment,
                   isLastVisibleSegment,
                 )}`}
-                title={`${booking.guestName} - ${segment.current}/${segment.total}`}
+                title={
+                  warningReason
+                    ? `${booking.guestName} - ${segment.current}/${segment.total}\n\nÀ vérifier : ${warningReason}`
+                    : `${booking.guestName} - ${segment.current}/${segment.total}`
+                }
               >
                 <p className="truncate text-[13px] font-semibold leading-4 text-white">
                   {booking.guestName}
@@ -361,8 +413,10 @@ function GridRow({
             className={`min-h-[72px] cursor-pointer p-[2px] transition ${
               isPast
                 ? `${PAST_CELL_BORDER} bg-[#e8e8e8] hover:bg-[#dddddd]`
-                : `${DEFAULT_CELL_BORDER} bg-white hover:bg-[#f7f2ea]`
-            }`}
+                : isToday
+                  ? `${TODAY_CELL_BORDER} ${TODAY_CELL_BG} ${TODAY_CELL_HOVER}`
+                  : `${DEFAULT_CELL_BORDER} bg-white ${FUTURE_CELL_HOVER}`
+            } ${isLastColumn ? "border-r-0" : ""}`}
           />
         );
       })}
@@ -376,6 +430,61 @@ function LegendItem({ color, label }: { color: string; label: string }) {
       <span className={`h-3.5 w-3.5 rounded-[4px] ${color}`} />
       {label}
     </span>
+  );
+}
+
+function StatusHelpPopover() {
+  return (
+    <div className="group relative inline-flex">
+      <button
+        type="button"
+        className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-[#d8d0c2] bg-white text-[11px] font-semibold text-[#6c675f] transition hover:bg-[#eee6da] hover:text-[#314835]"
+        aria-label="Comprendre les statuts"
+      >
+        ?
+      </button>
+
+      <div className="pointer-events-none absolute left-1/2 top-7 z-50 hidden w-[360px] -translate-x-1/2 rounded-2xl border border-[#d8ccba] bg-white p-4 text-left text-xs text-[#5f5a52] shadow-[0_14px_34px_rgba(0,0,0,0.16)] group-hover:block">
+        <div className="mb-3">
+          <p className="text-sm font-semibold text-[#1e1e1e]">
+            Comprendre les statuts
+          </p>
+          <p className="mt-1 text-[11px] leading-4 text-[#756f67]">
+            Les couleurs du planning indiquent l’état opérationnel d’une
+            réservation.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          {STATUS_HELP_ITEMS.map((item) => (
+            <div key={item.label} className="flex gap-2">
+              <span
+                className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded-[4px] ${item.color}`}
+              />
+              <div>
+                <p className="font-semibold text-[#1e1e1e]">{item.label}</p>
+                <p className="mt-0.5 leading-4">{item.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 rounded-xl bg-[#f4f0e8] p-3 text-[11px] leading-4 text-[#5f5a52]">
+          <p className="font-semibold text-[#314835]">
+            Déclenchement “À vérifier” en MVP
+          </p>
+          <p className="mt-1">
+            La logique actuelle est basée sur la date uniquement : l’alerte se
+            déclenche à <strong>00:00</strong> lorsque le jour concerné commence.
+          </p>
+          <p className="mt-1">
+            Version métier avancée possible : utiliser les horaires réels de
+            l’établissement, par exemple check-in après 15h/16h et check-out
+            après 10h/11h.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -396,13 +505,13 @@ function getBookingRadiusClass(isFirst: boolean, isLast: boolean) {
 function getBookingSegment(day: string, startDate: string, endDate: string) {
   const current =
     differenceInCalendarDays(
-      stripTime(new Date(day)),
-      stripTime(new Date(startDate)),
+      inputDateToLocalDate(day),
+      inputDateToLocalDate(startDate),
     ) + 1;
 
   const total = differenceInCalendarDays(
-    stripTime(new Date(endDate)),
-    stripTime(new Date(startDate)),
+    inputDateToLocalDate(endDate),
+    inputDateToLocalDate(startDate),
   );
 
   return {
@@ -468,48 +577,79 @@ function getBookingPaymentStatus(
   return maybeBooking.paymentStatus === "paid" ? "paid" : "unpaid";
 }
 
-function isBookingDateWarning(
+function getBookingWarningReason(
   booking: AdminPlanningResponse["bookings"][number],
 ) {
   const today = stripTime(new Date());
-  const start = stripTime(new Date(booking.startDate));
-  const end = stripTime(new Date(booking.endDate));
+  const start = inputDateToLocalDate(booking.startDate);
+  const end = inputDateToLocalDate(booking.endDate);
 
-  if (booking.status === "pending") return true;
-  if (booking.status === "confirmed" && start <= today && end > today) return true;
-  if (booking.status === "confirmed" && end <= today) return true;
-  if (booking.status === "checked_in" && end <= today) return true;
-  if (booking.status === "checked_in" && start > today) return true;
+  if (booking.status === "pending") {
+    return "réservation non confirmée. En MVP, ce statut est affiché en alerte.";
+  }
 
-  return false;
+  if (booking.status === "confirmed" && start <= today && end > today) {
+    return "arrivée prévue aujourd’hui ou déjà commencée, mais client pas encore marqué arrivé. Trigger MVP : 00:00 le jour d’arrivée.";
+  }
+
+  if (booking.status === "confirmed" && end <= today) {
+    return "séjour terminé ou jour de départ atteint, mais réservation toujours confirmée. Trigger MVP : 00:00 le jour du départ.";
+  }
+
+  if (booking.status === "checked_in" && end <= today) {
+    return "départ prévu aujourd’hui ou passé, mais client pas encore marqué parti. Trigger MVP : 00:00 le jour du départ.";
+  }
+
+  if (booking.status === "checked_in" && start > today) {
+    return "incohérence métier : client marqué arrivé avant sa date d’arrivée.";
+  }
+
+  return null;
 }
 
 function isDayInsideBooking(day: string, startDate: string, endDate: string) {
-  const d = stripTime(new Date(day));
-  const start = stripTime(new Date(startDate));
-  const end = stripTime(new Date(endDate));
+  const d = inputDateToLocalDate(day);
+  const start = inputDateToLocalDate(startDate);
+  const end = inputDateToLocalDate(endDate);
 
   return d >= start && d < end;
+}
+
+function isPastDay(value: string) {
+  return inputDateToLocalDate(value) < stripTime(new Date());
 }
 
 function stripTime(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function isPastDay(value: string) {
-  return stripTime(new Date(value)) < stripTime(new Date());
+function normalizeInputDate(value: string) {
+  return value.slice(0, 10);
+}
+
+function inputDateToLocalDate(value: string) {
+  const normalized = normalizeInputDate(value);
+  const [year, month, day] = normalized.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
 }
 
 function getTodayInputDate() {
-  const now = new Date();
+  return toInputDate(new Date());
+}
 
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    .toISOString()
-    .slice(0, 10);
+function getWeekStartInputDate(input: string) {
+  const date = inputDateToLocalDate(input);
+  const day = date.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  date.setDate(date.getDate() + diffToMonday);
+
+  return toInputDate(date);
 }
 
 function addDaysToInputDate(input: string, days: number) {
-  const date = new Date(`${input}T00:00:00`);
+  const date = inputDateToLocalDate(input);
   date.setDate(date.getDate() + days);
 
   return toInputDate(date);
@@ -524,21 +664,21 @@ function toInputDate(date: Date) {
 }
 
 function formatWeekdayHeader(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("fr-FR", {
+  return inputDateToLocalDate(value).toLocaleDateString("fr-FR", {
     weekday: "short",
   });
 }
 
 function formatDayHeader(value: string) {
-  return new Date(`${value}T00:00:00`).toLocaleDateString("fr-FR", {
+  return inputDateToLocalDate(value).toLocaleDateString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
   });
 }
 
 function formatRangeLabel(from: string, to: string) {
-  const fromDate = new Date(`${from}T00:00:00`);
-  const toDate = new Date(`${to}T00:00:00`);
+  const fromDate = inputDateToLocalDate(from);
+  const toDate = inputDateToLocalDate(to);
 
   return `${fromDate.toLocaleDateString("fr-FR", {
     day: "2-digit",

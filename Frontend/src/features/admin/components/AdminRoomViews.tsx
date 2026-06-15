@@ -275,9 +275,7 @@ function AddRoomModal({
             <h3 className="text-2xl font-semibold text-[#1e1e1e]">
               Ajouter une chambre
             </h3>
-            <p className="mt-1 text-sm text-[#6c675f]">
-              Crée une chambre physique liée à un type commercial.
-            </p>
+ 
           </div>
 
           <button

@@ -252,9 +252,7 @@ function RoomTypeModal({
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-2xl font-semibold text-[#1e1e1e]">{title}</h3>
-            <p className="mt-1 text-sm text-[#6c675f]">
-              Ces infos sont utilisées côté réservation et présentation client.
-            </p>
+
           </div>
 
           <button
@@ -322,25 +320,23 @@ function RoomTypeModal({
                   />
                 </div>
               ) : null}
+<label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed border-[#d8d0c2] bg-[#fcfaf7] px-4 py-6 text-sm font-medium text-[#314835] transition hover:bg-[#faf6ef]">
+  {uploadingImage ? "Upload en cours..." : "Choisir une image"}
 
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                disabled={busy || uploadingImage}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-                  void handleImageUpload(file);
-                }}
-                className="w-full rounded-xl border border-[#d8d0c2] px-4 py-3 text-sm"
-              />
+  <input
+    type="file"
+    accept="image/png,image/jpeg,image/webp"
+    disabled={busy || uploadingImage}
+    onChange={(event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      void handleImageUpload(file);
+    }}
+    className="hidden"
+  />
+</label>
 
-              <input
-                value={imageUrl}
-                onChange={(event) => setImageUrl(event.target.value)}
-                placeholder="/uploads/rooms/double.jpg"
-                className="w-full rounded-xl border border-[#d8d0c2] px-4 py-3 text-sm outline-none transition focus:border-[#314835] focus:ring-4 focus:ring-[#314835]/10"
-              />
+
 
               {uploadingImage ? (
                 <p className="text-sm text-[#6c675f]">Upload en cours...</p>

@@ -15,77 +15,75 @@ export class BookingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAvailability(dto: GetBookingAvailabilityDto) {
-    const { startDate, endDate } = dto;
+  const { startDate, endDate } = dto;
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException('Dates invalides.');
-    }
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new BadRequestException('Dates invalides.');
+  }
 
-    if (end <= start) {
-      throw new BadRequestException(
-        "La date de départ doit être après la date d'arrivée.",
-      );
-    }
+  if (end <= start) {
+    throw new BadRequestException(
+      "La date de départ doit être après la date d'arrivée.",
+    );
+  }
 
-    const roomTypes = await this.prisma.roomType.findMany({
-      include: {
-        rooms: {
-          where: {
-            status: RoomStatus.available,
-            bookings: {
-              none: {
-                status: {
-                  in: [
-                    BookingStatus.pending,
-                    BookingStatus.confirmed,
-                    BookingStatus.checked_in,
-                  ],
-                },
-                startDate: { lt: end },
-                endDate: { gt: start },
+  const roomTypes = await this.prisma.roomType.findMany({
+    include: {
+      rooms: {
+        where: {
+          status: RoomStatus.available,
+          bookings: {
+            none: {
+              status: {
+                in: [
+                  BookingStatus.pending,
+                  BookingStatus.confirmed,
+                  BookingStatus.checked_in,
+                ],
               },
+              startDate: { lt: end },
+              endDate: { gt: start },
             },
           },
         },
-        mealPlans: {
-          include: {
-            mealPlan: true,
-          },
+      },
+      mealPlans: {
+        include: {
+          mealPlan: true,
         },
       },
-      orderBy: {
-        name: 'asc',
-      },
-    });
+    },
+    orderBy: {
+      name: 'asc',
+    },
+  });
 
-    return {
-      success: true,
-      startDate,
-      endDate,
-      roomTypes: roomTypes
-        .filter((roomType) => roomType.rooms.length > 0)
-        .map((roomType) => ({
-          id: roomType.id,
-          code: roomType.code,
-          name: roomType.name,
-          description: roomType.description,
-          maxCapacity: roomType.maxCapacity,
-          basePrice: roomType.basePrice,
-          imageUrl: roomType.imageUrl,
-          availableRooms: roomType.rooms.length,
-          mealPlans: roomType.mealPlans.map((link) => ({
-            id: link.mealPlan.id,
-            code: link.mealPlan.code,
-            name: link.mealPlan.name,
-            adultPrice: link.mealPlan.adultPrice,
-            childPrice: link.mealPlan.childPrice,
-          })),
-        })),
-    };
-  }
+  return {
+    success: true,
+    startDate,
+    endDate,
+    roomTypes: roomTypes.map((roomType) => ({
+      id: roomType.id,
+      code: roomType.code,
+      name: roomType.name,
+      description: roomType.description,
+      maxCapacity: roomType.maxCapacity,
+      basePrice: roomType.basePrice,
+      imageUrl: roomType.imageUrl,
+      availableRooms: roomType.rooms.length,
+      mealPlans: roomType.mealPlans.map((link) => ({
+        id: link.mealPlan.id,
+        code: link.mealPlan.code,
+        name: link.mealPlan.name,
+        adultPrice: link.mealPlan.adultPrice,
+        childPrice: link.mealPlan.childPrice,
+      })),
+    })),
+  };
+}
 
   async createBooking(dto: CreateBookingDto) {
     const result = await this.createPendingWebsiteBooking(dto);

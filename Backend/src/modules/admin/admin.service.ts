@@ -25,12 +25,14 @@ import { CreateAdminBookingDto } from './dto/create-admin-booking.dto';
 import { UpdateAdminBookingDto } from './dto/update-admin-booking.dto';
 import { UpdateAdminRoomTypeDto } from './dto/update-admin-room-type.dto';
 import { SystemLogsService } from '../system-logs/system-logs.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly systemLogsService: SystemLogsService,
+    private readonly invoicesService: InvoicesService,
   ) {}
 
   async getRooms() {
@@ -552,6 +554,12 @@ export class AdminService {
       };
     });
 
+    if (paymentStatus === PaymentStatus.paid) {
+      await this.invoicesService.createForBookingGroup({
+        bookingGroupId: result.bookingGroupId,
+      });
+    }
+
     await this.systemLogsService.create({
       type: SystemLogType.admin_booking_created,
       bookingGroupId: result.bookingGroupId,
@@ -596,6 +604,7 @@ export class AdminService {
     }
 
     const previousStatus = booking.status;
+    const previousPaymentStatus = booking.paymentStatus;
 
     const startDate = dto.startDate ? new Date(dto.startDate) : booking.startDate;
     const endDate = dto.endDate ? new Date(dto.endDate) : booking.endDate;
@@ -733,6 +742,16 @@ export class AdminService {
         mealPlan: true,
       },
     });
+
+    const becamePaid =
+      previousPaymentStatus !== PaymentStatus.paid &&
+      updated.paymentStatus === PaymentStatus.paid;
+
+    if (becamePaid && updated.bookingGroupId) {
+      await this.invoicesService.createForBookingGroup({
+        bookingGroupId: updated.bookingGroupId,
+      });
+    }
 
     await this.logBookingStatusMove({
       bookingId: updated.id,

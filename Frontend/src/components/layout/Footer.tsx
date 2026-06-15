@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer className="border-t border-[#d8d1c6] bg-[#314835] text-[#f4efe7]">
+  <footer className="bg-[#314835] text-[#f4efe7]">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div>
           <p className="text-sm font-semibold">Auberge du Fauxcalm</p>

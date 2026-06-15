@@ -99,10 +99,6 @@ export default function AdminBookingsListView({
               Réservations
             </h2>
 
-            <p className="mt-3 text-sm text-[#6c675f]">
-              {viewConfig.subtitle}
-            </p>
-
             <div className="mt-5 flex flex-wrap gap-2">
               {TABS.map((tab) => (
                 <button
@@ -110,9 +106,9 @@ export default function AdminBookingsListView({
                   type="button"
                   onClick={() => setMode(tab.value)}
                   className={`cursor-pointer rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                    mode === tab.value
-                      ? "bg-[#314835] text-white"
-                      : "bg-[#f8f3ea] text-[#314835] hover:bg-[#efe8dc]"
+mode === tab.value
+  ? "bg-[#314835] text-white hover:bg-[#3b563f]"
+  : "bg-[#eee6da] text-[#314835] hover:bg-[#e3d8c9]"
                   }`}
                 >
                   {tab.label}

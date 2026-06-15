@@ -202,3 +202,19 @@ export type AdminSystemLogDto = {
   metadata?: unknown;
   createdAt: string;
 };
+
+export type AdminStatsDto = {
+  totalRooms: number;
+  availableRooms: number;
+  occupiedRooms: number;
+  roomTypesCount: number;
+  totalBookings: number;
+
+  monthlyRevenue: number;
+  weeklyRevenue: number;
+  monthlySoldNights: number;
+  monthlyOccupancyRate: number;
+  averageBookingValue: number;
+  unpaidBookings: number;
+  upcomingBookings: number;
+};

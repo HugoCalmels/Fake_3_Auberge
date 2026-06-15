@@ -7,10 +7,7 @@ type Props = {
   onChange: (panel: AdminWorkspacePanel) => void;
 };
 
-export default function AdminReservationsSidebar({
-  panel,
-  onChange,
-}: Props) {
+export default function AdminReservationsSidebar({ panel, onChange }: Props) {
   return (
     <aside className="self-start rounded-[20px] border border-[#d8d0c2] bg-white p-4 shadow-sm">
       <nav className="space-y-7">
@@ -48,12 +45,13 @@ export default function AdminReservationsSidebar({
             active={panel === "stats"}
             onClick={() => onChange("stats")}
           />
+
+          <SidebarButton
+            label="Journal"
+            active={panel === "system-logs"}
+            onClick={() => onChange("system-logs")}
+          />
         </SidebarSection>
-        <SidebarButton
-  label="Journal"
-  active={panel === "system-logs"}
-  onClick={() => onChange("system-logs")}
-/>
       </nav>
     </aside>
   );
@@ -72,9 +70,7 @@ function SidebarSection({
         {title}
       </p>
 
-      <div className="mt-3 space-y-2.5">
-        {children}
-      </div>
+      <div className="mt-3 space-y-2.5">{children}</div>
     </section>
   );
 }
@@ -93,9 +89,9 @@ function SidebarButton({
       type="button"
       onClick={onClick}
       className={`flex w-full cursor-pointer items-center rounded-xl px-3.5 py-2.5 text-left text-[14px] font-medium transition ${
-        active
-          ? "bg-[#314835] text-white"
-          : "bg-[#eee6da] text-[#314835] hover:bg-[#e3d8c9]"
+active
+  ? "bg-[#314835] text-white hover:bg-[#3b563f]"
+  : "bg-[#eee6da] text-[#314835] hover:bg-[#e3d8c9]"
       }`}
     >
       <span>{label}</span>

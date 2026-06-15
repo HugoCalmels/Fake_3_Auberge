@@ -93,9 +93,7 @@ export default function AdminSystemLogsView({ onSelectBooking }: Props) {
           Journal des réservations
         </h2>
 
-        <p className="mt-3 text-sm text-[#6c675f]">
-          Historique simple des actions importantes sur les réservations.
-        </p>
+   
       </div>
 
       {loading ? (

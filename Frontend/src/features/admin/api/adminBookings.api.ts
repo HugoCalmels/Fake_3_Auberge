@@ -145,3 +145,54 @@ export async function assignAdminBookingRoom(
 
   return response.json();
 }
+
+export async function downloadAdminBookingInvoicePdf(
+  bookingId: string,
+): Promise<void> {
+  const response = await fetch(
+    getApiUrl(`admin/invoices/bookings/${bookingId}/pdf`),
+    {
+      method: "GET",
+      headers: getAdminAuthHeaders(),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw await parseApiError(
+      response,
+      "Impossible de telecharger la facture.",
+    );
+  }
+
+  const blob = await response.blob();
+  const filename = getFilenameFromContentDisposition(
+    response.headers.get("Content-Disposition"),
+  );
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename ?? `facture-reservation-${bookingId}.pdf`;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  window.URL.revokeObjectURL(url);
+}
+
+function getFilenameFromContentDisposition(
+  contentDisposition: string | null,
+): string | null {
+  if (!contentDisposition) return null;
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const simpleMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+  return simpleMatch?.[1] ?? null;
+}

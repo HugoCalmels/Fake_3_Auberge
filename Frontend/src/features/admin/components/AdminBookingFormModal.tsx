@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createAdminBooking } from "@/features/admin/api/adminBookings.api";
+import { getAdminRoomTypeImageSrc } from "@/features/admin/api/adminRoomTypes.api";
 import { getBookingAvailability } from "@/features/booking/api/bookings.api";
 import type { MealPlanCode } from "@/features/booking/api/bookings.api";
 import type {
@@ -681,6 +682,8 @@ function LockedPlanningRoomCard({
     nights;
   const totalPrice = roomPrice + mealPlanPrice;
 
+  const imageUrl = roomType.imageUrl || offer.imageUrl || "";
+
   useEffect(() => {
     onChange({
       lineId: `locked-${room.id}`,
@@ -716,9 +719,17 @@ function LockedPlanningRoomCard({
     <article className="rounded-[22px] border border-[#d8d0c2] bg-[#fcfaf7] p-4">
       <div className="grid gap-4 xl:grid-cols-[130px_minmax(0,1fr)_120px]">
         <div className="aspect-square overflow-hidden rounded-[16px] border border-[#ddd4c6] bg-[#f3eee6]">
-          <div className="flex h-full w-full items-center justify-center text-xs text-[#8a847b]">
-            Image
-          </div>
+          {imageUrl ? (
+            <img
+              src={getAdminRoomTypeImageSrc(imageUrl)}
+              alt={roomType.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-[#8a847b]">
+              Image
+            </div>
+          )}
         </div>
 
         <div className="min-w-0">
@@ -864,9 +875,17 @@ function AdminRoomOfferCard({
     <article className="rounded-[22px] border border-[#d8d0c2] bg-[#fcfaf7] p-4">
       <div className="grid gap-4 xl:grid-cols-[130px_minmax(0,1fr)_110px]">
         <div className="aspect-square overflow-hidden rounded-[16px] border border-[#ddd4c6] bg-[#f3eee6]">
-          <div className="flex h-full w-full items-center justify-center text-xs text-[#8a847b]">
-            Image
-          </div>
+          {offer.imageUrl ? (
+            <img
+              src={getAdminRoomTypeImageSrc(offer.imageUrl)}
+              alt={offer.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-[#8a847b]">
+              Image
+            </div>
+          )}
         </div>
 
         <div className="min-w-0">

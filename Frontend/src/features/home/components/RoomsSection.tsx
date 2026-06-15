@@ -64,55 +64,69 @@ export default function RoomsSection({
     const carousel = carouselRef.current;
     if (!carousel) return;
 
+    const card = carousel.querySelector("article");
+    const cardWidth = card?.clientWidth ?? 290;
+    const gap = window.innerWidth < 640 ? 16 : 20;
+
     carousel.scrollBy({
-      left: direction === "next" ? 390 : -390,
+      left: direction === "next" ? cardWidth + gap : -(cardWidth + gap),
       behavior: "smooth",
     });
   }
 
   return (
     <section id="hebergement" className="bg-[#f4efe7]">
-      <div className="mx-auto max-w-[1280px] px-4 pt-24 pb-20 sm:px-6 lg:px-8 lg:pt-30 lg:pb-24">
-        <div className="max-w-[820px]">
-          <h2 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl">
-            Hébergements
-          </h2>
+      <div className="mx-auto max-w-[1280px] pb-16 pt-20 md:pb-20 md:pt-24 lg:pb-24 lg:pt-30">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="max-w-[820px]">
+            <h2 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl">
+              Hébergements
+            </h2>
 
-          <div className="mt-8 max-w-[780px] space-y-4 text-[17px] leading-8 text-[#5f5a52]">
-            <p>
-              Chambres doubles, familiales ou partagées : l’auberge propose
-              plusieurs configurations adaptées aux séjours en couple, en
-              famille ou en groupe.
-            </p>
+            <div className="mt-6 max-w-[780px] space-y-4 text-[16px] leading-7 text-[#5f5a52] sm:mt-8 sm:text-[17px] sm:leading-8">
+              <p>
+                Chambres doubles, familiales ou partagées : l’auberge propose
+                plusieurs configurations adaptées aux séjours en couple, en
+                famille ou en groupe.
+              </p>
 
-            <p>
-              Les 20 chambres disposent de salles d’eau privatives et peuvent
-              accueillir jusqu’à 49 voyageurs au total, dans une ambiance simple,
-              chaleureuse et pensée pour les séjours en montagne.
-            </p>
+              <p>
+                Les 20 chambres disposent de salles d’eau privatives et peuvent
+                accueillir jusqu’à 49 voyageurs au total, dans une ambiance
+                simple, chaleureuse et pensée pour les séjours en montagne.
+              </p>
 
-            <p>
-              Les disponibilités, capacités et formules se choisissent ensuite
-              au moment de la réservation en ligne.
-            </p>
+              <p>
+                Les disponibilités, capacités et formules se choisissent ensuite
+                au moment de la réservation en ligne.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="mt-12">
+        <div className="mt-10 md:mt-12">
           {loading ? (
-            <MessageCard>Chargement des hébergements...</MessageCard>
+            <div className="px-4 sm:px-6 lg:px-8">
+              <MessageCard>Chargement des hébergements...</MessageCard>
+            </div>
           ) : error ? (
-            <MessageCard danger>{error}</MessageCard>
+            <div className="px-4 sm:px-6 lg:px-8">
+              <MessageCard danger>{error}</MessageCard>
+            </div>
           ) : visibleRoomTypes.length === 0 ? (
-            <MessageCard>Aucun hébergement disponible pour le moment.</MessageCard>
+            <div className="px-4 sm:px-6 lg:px-8">
+              <MessageCard>
+                Aucun hébergement disponible pour le moment.
+              </MessageCard>
+            </div>
           ) : (
-            <div>
-              <div className="mb-6 flex justify-start">
-                <div className="hidden items-center gap-3 md:flex">
+            <>
+              <div className="mb-5 flex justify-start px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => scrollCarousel("prev")}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7]"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
                     aria-label="Voir les chambres précédentes"
                   >
                     ←
@@ -121,7 +135,7 @@ export default function RoomsSection({
                   <button
                     type="button"
                     onClick={() => scrollCarousel("next")}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7]"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
                     aria-label="Voir les chambres suivantes"
                   >
                     →
@@ -129,19 +143,21 @@ export default function RoomsSection({
                 </div>
               </div>
 
-              <div
-                ref={carouselRef}
-                className="-mx-4 flex snap-x gap-5 overflow-x-auto px-4 pb-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 [&::-webkit-scrollbar]:hidden"
-              >
-                {visibleRoomTypes.map((room) => (
-                  <RoomPreviewCard
-                    key={room.id}
-                    room={room}
-                    openBooking={openBooking}
-                  />
-                ))}
+              <div className="px-4 sm:px-6 lg:px-8">
+                <div
+                  ref={carouselRef}
+                  className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] md:gap-5 [&::-webkit-scrollbar]:hidden"
+                >
+                  {visibleRoomTypes.map((room) => (
+                    <RoomPreviewCard
+                      key={room.id}
+                      room={room}
+                      openBooking={openBooking}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>
@@ -177,8 +193,8 @@ function RoomPreviewCard({
     : null;
 
   return (
-    <article className="group w-[82vw] shrink-0 snap-start overflow-hidden rounded-[28px] border border-[#d8d1c6] bg-[#f8f4ed] transition duration-500 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.06)] sm:w-[370px]">
-      <div className="relative aspect-[1.35/1] overflow-hidden bg-[#d9d3c8]">
+    <article className="group flex w-[72vw] max-w-[290px] shrink-0 snap-start flex-col overflow-hidden rounded-[22px] border border-[#d8d1c6] bg-[#f8f4ed] transition duration-500 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.06)] sm:w-[340px] sm:max-w-none sm:rounded-[24px] lg:w-[370px]">
+      <div className="relative aspect-[1.28/1] overflow-hidden bg-[#d9d3c8] sm:aspect-[1.35/1]">
         {imageSrc ? (
           <img
             src={imageSrc}
@@ -194,23 +210,23 @@ function RoomPreviewCard({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/22 via-transparent to-transparent" />
       </div>
 
-      <div className="p-6">
-        <div className="flex min-h-[72px] items-start justify-between gap-4">
-          <h3 className="text-[24px] font-semibold tracking-[-0.03em] text-[#2d2c29]">
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
+        <div className="flex min-h-[52px] items-start justify-between gap-3 sm:min-h-[72px]">
+          <h3 className="text-[20px] font-semibold leading-tight tracking-[-0.03em] text-[#2d2c29] sm:text-[24px]">
             {room.name}
           </h3>
 
-          <span className="shrink-0 rounded-full bg-[#efe7db] px-3 py-1 text-xs font-semibold text-[#314835]">
+          <span className="shrink-0 rounded-full bg-[#efe7db] px-2.5 py-1 text-[11px] font-semibold text-[#314835] sm:px-3 sm:text-xs">
             {room.maxCapacity} pers.
           </span>
         </div>
 
-        <p className="mt-4 line-clamp-3 text-[15px] leading-7 text-[#5f5a52]">
+        <p className="mt-3 line-clamp-3 text-[14px] leading-6 text-[#5f5a52] sm:mt-4 sm:text-[15px] sm:leading-7">
           {room.description}
         </p>
 
-        <div className="mt-7 flex items-center justify-between gap-4">
-          <p className="text-sm text-[#6a645d]">
+        <div className="mt-auto flex items-center justify-between gap-3 pt-6">
+          <p className="text-[13px] text-[#6a645d] sm:text-sm">
             Dès{" "}
             <span className="font-semibold text-[#2d2c29]">
               {room.basePrice} €
@@ -221,7 +237,7 @@ function RoomPreviewCard({
           <button
             type="button"
             onClick={openBooking}
-            className="cursor-pointer rounded-full border border-[#d8d1c6] bg-white px-5 py-2.5 text-sm font-semibold text-[#314835] transition hover:bg-[#ece4d7]"
+            className="cursor-pointer rounded-full bg-[#314835] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#466349] sm:px-5"
           >
             Réserver
           </button>
