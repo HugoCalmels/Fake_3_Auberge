@@ -15,8 +15,8 @@ const heading = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Auberge du Montcalm",
-  description: "Auberge du Montcalm",
+  title: "Auberge du Fauxcalm",
+  description: "Auberge du Fauxcalm",
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type NavbarProps = {
@@ -25,6 +25,8 @@ export default function Navbar({
   keepVisibleToken = 0,
 }: NavbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
   const isAdminPage = pathname === "/admin";
   const isHomePage = pathname === "/";
 
@@ -47,7 +49,6 @@ export default function Navbar({
     [isHomePage],
   );
 
-  const logoHref = isHomePage ? "#top" : "/";
   const isScrolled = isAdminPage || scrolled;
   const shouldShowBookingButton = showBookingButton && !isAdminPage;
 
@@ -60,6 +61,22 @@ export default function Navbar({
   function closeMobileMenu() {
     setMobileOpen(false);
     setLangOpen(false);
+  }
+
+  function handleLogoClick() {
+    keepNavbarVisible();
+    closeMobileMenu();
+
+    if (isHomePage) {
+      window.history.pushState(null, "", "/");
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    router.push("/");
   }
 
   useEffect(() => {
@@ -131,14 +148,11 @@ export default function Navbar({
         }`}
       >
         <div className="flex h-[76px] items-center justify-between px-4 sm:px-6 lg:h-28 lg:px-16">
-          <a
-            href={logoHref}
-            onClick={() => {
-              keepNavbarVisible();
-              closeMobileMenu();
-            }}
+          <button
+            type="button"
+            onClick={handleLogoClick}
             aria-label="Retour à l’accueil"
-            className="relative flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-[64px] sm:w-[64px] lg:h-[94px] lg:w-[94px]"
+            className="relative flex h-[58px] w-[58px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full sm:h-[64px] sm:w-[64px] lg:h-[94px] lg:w-[94px]"
             style={{ boxShadow: "0 8px 22px rgba(0,0,0,0.18)" }}
           >
             <Image
@@ -153,7 +167,7 @@ export default function Navbar({
               aria-hidden="true"
               className="pointer-events-none absolute inset-0 rounded-full shadow-[inset_0_0_0_3px_#eee6da,inset_0_0_0_5px_#e3d8c9,inset_0_0_14px_3px_#eee6da] lg:shadow-[inset_0_0_0_4px_#eee6da,inset_0_0_0_6px_#e3d8c9,inset_0_0_18px_4px_#eee6da]"
             />
-          </a>
+          </button>
 
           <nav className="hidden items-center gap-6 lg:flex">
             {navLinks.map((item) => (

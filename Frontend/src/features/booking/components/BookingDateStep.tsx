@@ -120,7 +120,7 @@ export default function BookingDateStep({
 
                       !isSelected &&
                         isInRange &&
-                        "bg-[#e8efe6] font-medium text-[#263d2f]",
+                      "bg-[#dfe9dc] font-medium text-[#263d2f]",
 
                       !isSelected &&
                         isToday &&
