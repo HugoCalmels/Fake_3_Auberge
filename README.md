@@ -4,7 +4,7 @@ Application web de démonstration pour une auberge de montagne.
 
 ## Démonstration
 
-* Site : [https://votre-url.fr](https://auberge-du-fauxcalm.netlify.app/)
+* Site : [https://site-web](https://auberge-du-fauxcalm.netlify.app/)
 * Vidéo : [https://youtube.com/...](https://www.youtube.com/watch?v=chLyGFvjDDo)
 
 ## Stack
