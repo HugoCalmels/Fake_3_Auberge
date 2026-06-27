@@ -26,7 +26,7 @@ export default function BookingDateStep({
   onSelectDate,
 }: Props) {
   const days = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
-  const today = useMemo(() => stripTime(new Date()), []);
+  const today = useMemo(() => toInputDate(new Date()), []);
 
   const monthLabel = visibleMonth.toLocaleDateString("fr-FR", {
     month: "long",
@@ -81,25 +81,18 @@ export default function BookingDateStep({
 
             {days.map((day) => {
               const value = toInputDate(day);
-              const currentDay = stripTime(day);
-
               const isCurrentMonth =
                 day.getMonth() === visibleMonth.getMonth();
-              const isPast = currentDay < today;
-              const isToday = currentDay.getTime() === today.getTime();
+
+              const isToday = value === today;
               const isSelectedStart = value === startDate;
               const isSelectedEnd = value === endDate;
               const isSelected = isSelectedStart || isSelectedEnd;
 
-              const start = startDate ? stripTime(new Date(startDate)) : null;
-              const end = endDate ? stripTime(new Date(endDate)) : null;
-
               const isInRange =
-                Boolean(start && end) &&
-                currentDay > start! &&
-                currentDay < end!;
-
-              const isDisabled = isPast || !isCurrentMonth;
+                Boolean(startDate && endDate) &&
+                value > startDate &&
+                value < endDate;
 
               return (
                 <div
@@ -108,11 +101,10 @@ export default function BookingDateStep({
                 >
                   <button
                     type="button"
-                    disabled={isDisabled}
                     onClick={() => onSelectDate(value)}
                     aria-label={formatHumanDate(value)}
                     className={[
-                      "flex h-9 w-9 items-center justify-center rounded-full text-[15px] transition sm:h-11 sm:w-11 sm:text-[17px]",
+                      "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[15px] transition sm:h-11 sm:w-11 sm:text-[17px]",
                       "focus:outline-none focus:ring-2 focus:ring-[#314835]/30 focus:ring-offset-2",
 
                       isSelected &&
@@ -120,28 +112,24 @@ export default function BookingDateStep({
 
                       !isSelected &&
                         isInRange &&
-                      "bg-[#dfe9dc] font-medium text-[#263d2f]",
+                        "bg-[#dfe9dc] font-medium text-[#263d2f]",
 
                       !isSelected &&
+                        !isInRange &&
                         isToday &&
-                        !isPast &&
-                        isCurrentMonth &&
                         "border border-[#314835] bg-white font-semibold text-[#314835] hover:bg-[#f3f7f1]",
 
                       !isSelected &&
+                        !isInRange &&
                         !isToday &&
                         isCurrentMonth &&
-                        !isPast &&
                         "text-[#1f1f1f] hover:bg-[#f3f5ef]",
 
                       !isSelected &&
-                        isCurrentMonth &&
-                        isPast &&
-                        "cursor-not-allowed text-[#b7b0a6]",
-
-                      !isSelected &&
+                        !isInRange &&
+                        !isToday &&
                         !isCurrentMonth &&
-                        "cursor-default text-[#d0c8bd]",
+                        "text-[#d0c8bd] hover:bg-[#f3f5ef]",
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -190,11 +178,17 @@ function CalendarNavButton({
 function buildCalendarDays(visibleMonth: Date) {
   const year = visibleMonth.getFullYear();
   const month = visibleMonth.getMonth();
+
   const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+
   const offset = firstDayOfMonth.getDay();
   const firstVisibleDay = new Date(year, month, 1 - offset);
 
-  return Array.from({ length: 42 }, (_, index) => {
+  const visibleDayCount =
+    offset + lastDayOfMonth.getDate() <= 35 ? 35 : 42;
+
+  return Array.from({ length: visibleDayCount }, (_, index) => {
     const date = new Date(firstVisibleDay);
     date.setDate(firstVisibleDay.getDate() + index);
     return date;
@@ -202,17 +196,20 @@ function buildCalendarDays(visibleMonth: Date) {
 }
 
 function toInputDate(date: Date) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
-function stripTime(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function inputDateToLocalDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 function formatHumanDate(value: string) {
-  return new Date(value).toLocaleDateString("fr-FR", {
+  return inputDateToLocalDate(value).toLocaleDateString("fr-FR", {
     day: "numeric",
     month: "long",
     year: "numeric",

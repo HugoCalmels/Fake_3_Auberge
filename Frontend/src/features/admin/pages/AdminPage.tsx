@@ -35,9 +35,12 @@ export default function AdminPage() {
         <Navbar showBookingButton={false} />
         <div className="mx-auto flex min-h-[calc(100vh-9rem)] max-w-md items-center justify-center">
           <div className="w-full rounded-[28px] border border-[#d8d0c2] bg-white p-8 shadow-sm">
-            <h1 className="mb-2 text-[2rem] font-semibold text-[#1e1e1e]">Admin</h1>
+            <h1 className="mb-2 text-[2rem] font-semibold text-[#1e1e1e]">
+              Admin
+            </h1>
+
             <p className="mb-6 text-sm text-[#6c675f]">
-              Connectez-vous pour acceder au dashboard.
+              Connectez-vous pour accéder au dashboard.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -45,6 +48,7 @@ export default function AdminPage() {
                 <label className="mb-1 block text-sm font-medium text-[#1e1e1e]">
                   Email
                 </label>
+
                 <input
                   type="email"
                   className="w-full rounded-xl border border-[#d8d0c2] bg-white px-3 py-2.5 text-[#1e1e1e] outline-none transition focus:border-[#314835]"
@@ -59,6 +63,7 @@ export default function AdminPage() {
                 <label className="mb-1 block text-sm font-medium text-[#1e1e1e]">
                   Mot de passe
                 </label>
+
                 <input
                   type="password"
                   className="w-full rounded-xl border border-[#d8d0c2] bg-white px-3 py-2.5 text-[#1e1e1e] outline-none transition focus:border-[#314835]"
@@ -69,7 +74,9 @@ export default function AdminPage() {
                 />
               </div>
 
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
+              {error ? (
+                <p className="text-sm text-red-600">{error}</p>
+              ) : null}
 
               <button
                 type="submit"
@@ -85,10 +92,14 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f2eadf] px-6 pt-36 text-[#1e1e1e]">
+    <main className="min-h-screen bg-[#f2eadf] pt-36 text-[#1e1e1e]">
       <Navbar showBookingButton={false} />
-      <div className="mx-auto max-w-7xl">
-        <AdminReservationsWorkspace admin={admin} onLogout={signOut} />
+
+      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8">
+        <AdminReservationsWorkspace
+          admin={admin}
+          onLogout={signOut}
+        />
       </div>
     </main>
   );

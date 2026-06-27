@@ -151,6 +151,10 @@ export type AdminPlanningBookingDto = {
   startDate: string;
   endDate: string;
   status: AdminBookingStatus;
+  paymentStatus?: AdminPaymentStatus;
+  notes?: string | null;
+  mealPlanName?: string | null;
+  totalPrice?: number;
 };
 
 export type AdminPlanningRoomDto = {
@@ -189,9 +193,12 @@ export type AdminSystemLogType =
   | "website_booking_validated"
   | "website_booking_failed"
   | "admin_booking_created"
+  | "admin_booking_updated"
   | "admin_booking_deleted"
   | "booking_check_in"
-  | "booking_check_out";
+  | "booking_check_out"
+  | "booking_no_show"
+  | "booking_cancelled";
 
 export type AdminSystemLogDto = {
   id: string;

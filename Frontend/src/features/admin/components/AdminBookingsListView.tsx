@@ -7,7 +7,10 @@ import type {
   AdminBookingStatus,
 } from "@/features/admin/types";
 
-type Mode = "review" | "upcoming" | "current" | "history";
+type Mode = "upcoming" | "current" | "review" | "history";
+
+const CHECKIN_WARNING_HOUR = 18;
+const CHECKOUT_WARNING_HOUR = 12;
 
 type Props = {
   bookings: AdminBookingDto[];
@@ -18,9 +21,9 @@ type Props = {
 };
 
 const TABS: Array<{ value: Mode; label: string }> = [
-  { value: "review", label: "À vérifier" },
   { value: "upcoming", label: "À venir" },
   { value: "current", label: "En cours" },
+  { value: "review", label: "À vérifier" },
   { value: "history", label: "Historique" },
 ];
 
@@ -28,12 +31,13 @@ export default function AdminBookingsListView({
   bookings,
   onSelectBooking,
 }: Props) {
-  const [mode, setMode] = useState<Mode>("review");
+  const [mode, setMode] = useState<Mode>("upcoming");
   const [search, setSearch] = useState("");
 
   const filteredBookings = useMemo(() => {
     const base = bookings.filter((booking) => {
-      const hasDateWarning = isBookingDateWarning(booking);
+      const warningReason = getBookingWarningReason(booking);
+      const hasDateWarning = Boolean(warningReason);
 
       if (mode === "review") {
         return hasDateWarning;
@@ -77,14 +81,22 @@ export default function AdminBookingsListView({
           return haystack.includes(normalizedSearch);
         });
 
-    return searched.sort((a, b) => {
-      if (mode === "history" || mode === "review") {
-        return (
-          new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-        );
+    return [...searched].sort((a, b) => {
+      const aDate =
+        mode === "history"
+          ? new Date(a.endDate).getTime()
+          : new Date(a.startDate).getTime();
+
+      const bDate =
+        mode === "history"
+          ? new Date(b.endDate).getTime()
+          : new Date(b.startDate).getTime();
+
+      if (aDate !== bDate) {
+        return mode === "history" ? bDate - aDate : aDate - bDate;
       }
 
-      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+      return a.guestName.localeCompare(b.guestName, "fr-FR");
     });
   }, [bookings, mode, search]);
 
@@ -98,6 +110,10 @@ export default function AdminBookingsListView({
             <h2 className="text-[2rem] font-semibold leading-none text-[#1e1e1e]">
               Réservations
             </h2>
+
+            <p className="mt-2 max-w-[620px] text-sm text-[#6c675f]">
+              {viewConfig.subtitle}
+            </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
               {TABS.map((tab) => (
@@ -139,7 +155,8 @@ mode === tab.value
       ) : (
         <div>
           {filteredBookings.map((booking, index) => {
-            const hasDateWarning = isBookingDateWarning(booking);
+            const warningReason = getBookingWarningReason(booking);
+            const hasDateWarning = Boolean(warningReason);
 
             return (
               <button
@@ -187,6 +204,12 @@ mode === tab.value
                         }`
                       : ""}
                   </p>
+
+                  {warningReason ? (
+                    <p className="mt-2 rounded-lg bg-[#fff7dc] px-3 py-2 text-sm font-medium text-[#7a5a00]">
+                      {warningReason}
+                    </p>
+                  ) : null}
 
                   {booking.notes?.trim() ? (
                     <div className="mt-3 max-w-[560px] rounded-xl border border-[#e3dbcf] bg-[#fcfaf7] px-3 py-2">
@@ -237,27 +260,27 @@ mode === tab.value
 }
 
 function getViewConfig(mode: Mode) {
-  if (mode === "review") {
-    return {
-      subtitle:
-        "Corriger les réservations avec une incohérence entre statut et dates.",
-    };
-  }
-
   if (mode === "upcoming") {
     return {
-      subtitle: "Préparer les réservations à venir avant l’arrivée client.",
+      subtitle: "Réservations à venir, hors alertes à vérifier.",
     };
   }
 
   if (mode === "current") {
     return {
-      subtitle: "Voir les séjours actuellement arrivés.",
+      subtitle: "Clients actuellement arrivés dans l’établissement.",
+    };
+  }
+
+  if (mode === "review") {
+    return {
+      subtitle:
+        "Réservations qui demandent une action rapide : confirmer, marquer arrivé, parti ou pas venu.",
     };
   }
 
   return {
-    subtitle: "Retrouver les séjours partis, annulés ou marqués pas venus.",
+    subtitle: "Séjours terminés, annulés ou marqués pas venus.",
   };
 }
 
@@ -323,31 +346,50 @@ function getStatusConfig(status: AdminBookingStatus) {
   };
 }
 
-function isBookingDateWarning(booking: AdminBookingDto) {
-  const today = stripTime(new Date());
+function getBookingWarningReason(booking: AdminBookingDto) {
+  const now = new Date();
+  const today = stripTime(now);
+  const currentHour = now.getHours();
+
   const start = stripTime(new Date(booking.startDate));
   const end = stripTime(new Date(booking.endDate));
 
+  const startsToday = isSameCalendarDay(start, today);
+  const endsToday = isSameCalendarDay(end, today);
+
+  if (booking.status === "checked_in" && start > today) {
+    return "Action attendue : vérifier les dates ou remettre en Réservée.";
+  }
+
+  if (booking.status === "pending" && start <= today) {
+    return "Action attendue : confirmer ou annuler.";
+  }
+
   if (
-    (booking.status === "confirmed" || booking.status === "pending") &&
-    end <= today
+    booking.status === "confirmed" &&
+    startsToday &&
+    currentHour >= CHECKIN_WARNING_HOUR
   ) {
-    return true;
+    return `Action attendue : marquer Arrivé ou Pas venu.`;
   }
 
-  if (booking.status === "checked_in" && (start > today || end <= today)) {
-    return true;
+  if (booking.status === "confirmed" && start < today) {
+    return "Action attendue : marquer Arrivé ou Pas venu.";
   }
 
-  if (booking.status === "checked_out" && (start > today || end > today)) {
-    return true;
+  if (
+    booking.status === "checked_in" &&
+    endsToday &&
+    currentHour >= CHECKOUT_WARNING_HOUR
+  ) {
+    return "Action attendue : marquer Parti.";
   }
 
-  if (booking.status === "no_show" && start >= today) {
-    return true;
+  if (booking.status === "checked_in" && end < today) {
+    return "Action attendue : marquer Parti.";
   }
 
-  return false;
+  return null;
 }
 
 function Label({
@@ -372,6 +414,14 @@ function Value({ children }: { children: React.ReactNode }) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("fr-FR");
+}
+
+function isSameCalendarDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 function stripTime(date: Date) {

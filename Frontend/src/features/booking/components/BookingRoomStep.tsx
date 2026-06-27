@@ -49,6 +49,13 @@ export default function BookingRoomsStep({
 
   const sortedOffers = useMemo(() => {
     return [...offers].sort((a, b) => {
+      const cheapestA = getCheapestOfferTotalPrice(a, nights);
+      const cheapestB = getCheapestOfferTotalPrice(b, nights);
+
+      if (cheapestA !== cheapestB) {
+        return cheapestA - cheapestB;
+      }
+
       const remainingA = Math.max(
         0,
         a.availableRooms - getSelectedCountForOffer(a.id),
@@ -58,9 +65,13 @@ export default function BookingRoomsStep({
         b.availableRooms - getSelectedCountForOffer(b.id),
       );
 
-      return remainingB - remainingA;
+      if (remainingA !== remainingB) {
+        return remainingB - remainingA;
+      }
+
+      return a.name.localeCompare(b.name, "fr-FR");
     });
-  }, [offers, selectedRooms]);
+  }, [offers, selectedRooms, nights]);
 
   const hiddenSelectedCount = Math.max(
     0,
@@ -293,6 +304,19 @@ export default function BookingRoomsStep({
       `}</style>
     </div>
   );
+}
+
+function getCheapestOfferTotalPrice(offer: RoomAvailability, nights: number) {
+  const cheapestMealPlanPrice =
+    offer.mealPlans.length > 0
+      ? Math.min(
+          ...offer.mealPlans.map(
+            (plan) => (plan.adultPrice ?? 0) + (plan.childPrice ?? 0),
+          ),
+        )
+      : 0;
+
+  return (offer.basePrice + cheapestMealPlanPrice) * nights;
 }
 
 function RoomRow({

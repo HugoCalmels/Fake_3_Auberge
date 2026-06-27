@@ -180,12 +180,14 @@ model SystemLog {
   createdAt DateTime @default(now())
 }
 
-
 enum SystemLogType {
   website_booking_validated
   website_booking_failed
   admin_booking_created
+  admin_booking_updated
   admin_booking_deleted
   booking_check_in
   booking_check_out
+  booking_no_show
+  booking_cancelled
 }

@@ -10,6 +10,7 @@ import type {
   AdminRoomDto,
   AdminRoomTypeDto,
 } from "@/features/admin/types";
+import AdminDateRangePicker from "./AdminDateRangePicker";
 
 type BookingAvailabilityResponse = Awaited<
   ReturnType<typeof getBookingAvailability>
@@ -338,31 +339,15 @@ export default function AdminBookingFormModal({
                 <section className="rounded-[20px] border border-[#d8d0c2] bg-white p-5">
                   <SectionTitle eyebrow="Section 2" title="Séjour" />
 
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    <Field label="Arrivée">
-                      <TextInput
-                        type="date"
-                        value={startDate}
-                        onChange={(value) => {
-                          setStartDate(value);
-                          setSelectedRooms([]);
-                        }}
-                        required
-                      />
-                    </Field>
-
-                    <Field label="Départ">
-                      <TextInput
-                        type="date"
-                        value={endDate}
-                        onChange={(value) => {
-                          setEndDate(value);
-                          setSelectedRooms([]);
-                        }}
-                        required
-                      />
-                    </Field>
-                  </div>
+<div className="mt-4">
+  <AdminDateRangePicker
+    startDate={startDate}
+    endDate={endDate}
+    disabled={busy}
+    onStartDateChange={setStartDate}
+    onEndDateChange={setEndDate}
+  />
+</div>
 
                   <div className="mt-4">
                     <Field label="Notes internes">

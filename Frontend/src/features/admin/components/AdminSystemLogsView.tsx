@@ -11,6 +11,15 @@ type Props = {
   onSelectBooking?: (bookingId: string) => void;
 };
 
+const PAGE_SIZE = 50;
+const LOG_FETCH_LIMIT = 500;
+
+const FALLBACK_LOG_CONFIG = {
+  title: "Évènement réservation",
+  badge: "Journal",
+  dot: "bg-[#8a847b]",
+};
+
 const LOG_CONFIG: Record<
   AdminSystemLogType,
   {
@@ -34,6 +43,11 @@ const LOG_CONFIG: Record<
     badge: "Réservée",
     dot: "bg-[#3F51B5]",
   },
+  admin_booking_updated: {
+    title: "Réservation modifiée via le panel admin",
+    badge: "Modifiée",
+    dot: "bg-[#D9A520]",
+  },
   admin_booking_deleted: {
     title: "Réservation supprimée via le panel admin",
     badge: "Supprimée",
@@ -49,12 +63,23 @@ const LOG_CONFIG: Record<
     badge: "Parti",
     dot: "bg-[#616161]",
   },
+  booking_no_show: {
+    title: "Client marqué pas venu",
+    badge: "Pas venu",
+    dot: "bg-[#D96A3A]",
+  },
+  booking_cancelled: {
+    title: "Réservation annulée via le panel admin",
+    badge: "Annulée",
+    dot: "bg-[#8C1D18]",
+  },
 };
 
 export default function AdminSystemLogsView({ onSelectBooking }: Props) {
   const [logs, setLogs] = useState<AdminSystemLogDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let ignore = false;
@@ -64,8 +89,12 @@ export default function AdminSystemLogsView({ onSelectBooking }: Props) {
       setError("");
 
       try {
-        const data = await getAdminSystemLogs(150);
-        if (!ignore) setLogs(data);
+        const data = await getAdminSystemLogs(LOG_FETCH_LIMIT);
+
+        if (!ignore) {
+          setLogs(data);
+          setPage(1);
+        }
       } catch (err) {
         if (!ignore) {
           setError(
@@ -86,14 +115,49 @@ export default function AdminSystemLogsView({ onSelectBooking }: Props) {
     };
   }, []);
 
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const visibleLogs = logs.slice(pageStart, pageEnd);
+
+  function goToPreviousPage() {
+    setPage((current) => Math.max(1, current - 1));
+  }
+
+  function goToNextPage() {
+    setPage((current) => Math.min(totalPages, current + 1));
+  }
+
   return (
     <section className="overflow-hidden rounded-[22px] border border-[#d8d0c2] bg-white shadow-sm">
       <div className="border-b border-[#ece5d8] px-5 py-5">
-        <h2 className="text-[2rem] font-semibold leading-none text-[#1e1e1e]">
-          Journal des réservations
-        </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-[2rem] font-semibold leading-none text-[#1e1e1e]">
+              Activités
+            </h2>
 
-   
+            {!loading && !error && logs.length > 0 ? (
+              <p className="mt-2 text-sm text-[#6c675f]">
+                {logs.length} évènement{logs.length > 1 ? "s" : ""} chargé
+                {logs.length > 1 ? "s" : ""} · {PAGE_SIZE} par page
+              </p>
+            ) : null}
+          </div>
+
+          {!loading && !error && logs.length > PAGE_SIZE ? (
+            <PaginationControls
+              page={safePage}
+              totalPages={totalPages}
+              from={pageStart + 1}
+              to={Math.min(pageEnd, logs.length)}
+              total={logs.length}
+              onPrevious={goToPreviousPage}
+              onNext={goToNextPage}
+            />
+          ) : null}
+        </div>
       </div>
 
       {loading ? (
@@ -108,17 +172,84 @@ export default function AdminSystemLogsView({ onSelectBooking }: Props) {
         </div>
       ) : (
         <div>
-          {logs.map((log, index) => (
+          {visibleLogs.map((log, index) => (
             <LogRow
               key={log.id}
               log={log}
               onSelectBooking={onSelectBooking}
-              hasBorder={index !== logs.length - 1}
+              hasBorder={index !== visibleLogs.length - 1}
             />
           ))}
+
+          {logs.length > PAGE_SIZE ? (
+            <div className="border-t border-[#ece5d8] px-5 py-4">
+              <PaginationControls
+                page={safePage}
+                totalPages={totalPages}
+                from={pageStart + 1}
+                to={Math.min(pageEnd, logs.length)}
+                total={logs.length}
+                onPrevious={goToPreviousPage}
+                onNext={goToNextPage}
+              />
+            </div>
+          ) : null}
         </div>
       )}
     </section>
+  );
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  from,
+  to,
+  total,
+  onPrevious,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  from: number;
+  to: number;
+  total: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 text-sm text-[#6c675f]">
+      <span className="font-medium text-[#1e1e1e]">
+        {from}–{to}
+      </span>
+      <span>sur {total}</span>
+      <span className="hidden text-[#b7ae9f] sm:inline">·</span>
+      <span>
+        page {page} / {totalPages}
+      </span>
+
+      <div className="ml-0 flex items-center gap-2 sm:ml-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={onPrevious}
+          className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[#d8d0c2] bg-white text-[#314835] transition hover:bg-[#faf6ef] disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label="Page précédente"
+        >
+          ←
+        </button>
+
+        <button
+          type="button"
+          disabled={page >= totalPages}
+          onClick={onNext}
+          className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-[#d8d0c2] bg-white text-[#314835] transition hover:bg-[#faf6ef] disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label="Page suivante"
+        >
+          →
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -131,7 +262,7 @@ function LogRow({
   onSelectBooking?: (bookingId: string) => void;
   hasBorder: boolean;
 }) {
-  const config = LOG_CONFIG[log.type];
+  const config = LOG_CONFIG[log.type] ?? FALLBACK_LOG_CONFIG;
   const date = formatDateParts(log.createdAt);
   const details = getLogDetails(log);
   const bookingId = getOpenableBookingId(log);
@@ -219,11 +350,17 @@ function getBadgeClasses(type: AdminSystemLogType) {
     return "border-[#3F51B5] bg-[#3F51B5] text-white";
   }
 
-  if (type === "website_booking_failed") {
+  if (
+    type === "website_booking_failed" ||
+    type === "admin_booking_updated"
+  ) {
     return "border-[#D9A520] bg-[#D9A520] text-white";
   }
 
-  if (type === "admin_booking_deleted") {
+  if (
+    type === "admin_booking_deleted" ||
+    type === "booking_cancelled"
+  ) {
     return "border-[#8C1D18] bg-[#8C1D18] text-white";
   }
 
@@ -231,7 +368,15 @@ function getBadgeClasses(type: AdminSystemLogType) {
     return "border-[#0B8043] bg-[#0B8043] text-white";
   }
 
-  return "border-[#616161] bg-[#616161] text-white";
+  if (type === "booking_no_show") {
+    return "border-[#D96A3A] bg-[#D96A3A] text-white";
+  }
+
+  if (type === "booking_check_out") {
+    return "border-[#616161] bg-[#616161] text-white";
+  }
+
+  return "border-[#8a847b] bg-[#8a847b] text-white";
 }
 
 function getLogDetails(log: AdminSystemLogDto) {
@@ -266,14 +411,23 @@ function getLogDetails(log: AdminSystemLogDto) {
     };
   }
 
+  if (log.type === "admin_booking_updated") {
+    return {
+      main: client ? `Client : ${client}` : cleanAdminMessage(log.message),
+      secondary: formatUpdateDetails(metadata, log.message),
+    };
+  }
+
   if (
     log.type === "admin_booking_deleted" ||
     log.type === "booking_check_in" ||
-    log.type === "booking_check_out"
+    log.type === "booking_check_out" ||
+    log.type === "booking_no_show" ||
+    log.type === "booking_cancelled"
   ) {
     return {
       main: client ? `Client : ${client}` : cleanAdminMessage(log.message),
-      secondary: "",
+      secondary: formatUpdateDetails(metadata, log.message),
     };
   }
 
@@ -288,8 +442,11 @@ function getOpenableBookingId(log: AdminSystemLogDto) {
 
   const metadata = getMetadata(log);
   const bookingIds = getStringArray(metadata.bookingIds);
+  const bookingId = getString(metadata.bookingId);
 
-  return bookingIds[0] ?? null;
+  return log.type === "admin_booking_deleted"
+    ? null
+    : bookingId || bookingIds[0] || null;
 }
 
 function formatBookingSummary(roomCount?: number, totalPrice?: number) {
@@ -301,6 +458,60 @@ function formatBookingSummary(roomCount?: number, totalPrice?: number) {
 
   if (typeof totalPrice === "number") {
     parts.push(formatPrice(totalPrice));
+  }
+
+  return parts.join(" • ");
+}
+
+function formatUpdateDetails(
+  metadata: Record<string, unknown>,
+  message?: string | null,
+) {
+  const changes = getChangeArray(metadata.changes);
+
+  if (changes.length) {
+    return changes
+      .map((change) => {
+        if (change.from !== undefined && change.to !== undefined) {
+          return `${change.label} : ${String(change.from)} → ${String(
+            change.to,
+          )}`;
+        }
+
+        return change.label;
+      })
+      .join(" • ");
+  }
+
+  const previousStatus = getString(metadata.previousStatus);
+  const nextStatus = getString(metadata.nextStatus);
+  const previousPaymentStatus = getString(metadata.previousPaymentStatus);
+  const nextPaymentStatus = getString(metadata.nextPaymentStatus);
+
+  const parts: string[] = [];
+
+  if (previousStatus && nextStatus && previousStatus !== nextStatus) {
+    parts.push(
+      `Statut : ${formatStatusLabel(previousStatus)} → ${formatStatusLabel(
+        nextStatus,
+      )}`,
+    );
+  }
+
+  if (
+    previousPaymentStatus &&
+    nextPaymentStatus &&
+    previousPaymentStatus !== nextPaymentStatus
+  ) {
+    parts.push(
+      `Paiement : ${formatPaymentLabel(
+        previousPaymentStatus,
+      )} → ${formatPaymentLabel(nextPaymentStatus)}`,
+    );
+  }
+
+  if (!parts.length) {
+    return cleanAdminMessage(message);
   }
 
   return parts.join(" • ");
@@ -319,8 +530,28 @@ function cleanAdminMessage(message?: string | null) {
 
   return message
     .replace("Réservation créée via le panel admin.", "")
+    .replace("Réservation modifiée via le panel admin", "Modification")
     .replace("Réservation supprimée via le panel admin", "Suppression")
+    .replace("Réservation annulée via le panel admin", "Annulation")
     .trim();
+}
+
+function formatStatusLabel(value: string) {
+  if (value === "pending") return "En attente";
+  if (value === "confirmed") return "Réservée";
+  if (value === "checked_in") return "Arrivé";
+  if (value === "checked_out") return "Parti";
+  if (value === "no_show") return "Pas venu";
+  if (value === "cancelled") return "Annulée";
+
+  return value;
+}
+
+function formatPaymentLabel(value: string) {
+  if (value === "paid") return "Payé";
+  if (value === "unpaid") return "Non payé";
+
+  return value;
 }
 
 function getMetadata(log: AdminSystemLogDto) {
@@ -329,6 +560,32 @@ function getMetadata(log: AdminSystemLogDto) {
   }
 
   return log.metadata as Record<string, unknown>;
+}
+
+function getChangeArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+
+    const record = item as Record<string, unknown>;
+    const label = getString(record.label);
+
+    if (!label) {
+      return [];
+    }
+
+    return [
+      {
+        field: getString(record.field),
+        label,
+        from: record.from as string | number | null | undefined,
+        to: record.to as string | number | null | undefined,
+      },
+    ];
+  });
 }
 
 function getString(value: unknown) {

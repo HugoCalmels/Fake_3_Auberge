@@ -161,24 +161,46 @@ export class AdminService {
 
     const code = await generateUniqueRoomTypeCode(this.prisma, cleanName);
 
-    return this.prisma.roomType.create({
-      data: {
-        code,
-        name: cleanName,
-        description: dto.description.trim(),
-        maxCapacity: dto.maxCapacity,
-        basePrice: dto.basePrice,
-        imageUrl: dto.imageUrl?.trim() || null,
-      },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        description: true,
-        maxCapacity: true,
-        basePrice: true,
-        imageUrl: true,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const mealPlans = await tx.mealPlan.findMany({
+        select: { id: true },
+      });
+
+      if (!mealPlans.length) {
+        throw new BadRequestException(
+          'Aucune formule disponible. Lance le seed des formules avant de créer un type de chambre.',
+        );
+      }
+
+      const roomType = await tx.roomType.create({
+        data: {
+          code,
+          name: cleanName,
+          description: dto.description.trim(),
+          maxCapacity: dto.maxCapacity,
+          basePrice: dto.basePrice,
+          imageUrl: dto.imageUrl?.trim() || null,
+        },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          description: true,
+          maxCapacity: true,
+          basePrice: true,
+          imageUrl: true,
+        },
+      });
+
+      await tx.roomTypeMealPlan.createMany({
+        data: mealPlans.map((mealPlan) => ({
+          roomTypeId: roomType.id,
+          mealPlanId: mealPlan.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      return roomType;
     });
   }
 
@@ -191,7 +213,7 @@ export class AdminService {
       throw new NotFoundException('Type de chambre introuvable.');
     }
 
-    return this.prisma.roomType.update({
+    const updatedRoomType = await this.prisma.roomType.update({
       where: { id },
       data: {
         name: dto.name !== undefined ? dto.name.trim() : undefined,
@@ -212,6 +234,10 @@ export class AdminService {
         imageUrl: true,
       },
     });
+
+    await this.ensureMealPlansForRoomType(updatedRoomType.id);
+
+    return updatedRoomType;
   }
 
   async deleteRoomType(id: string) {
@@ -605,6 +631,14 @@ export class AdminService {
 
     const previousStatus = booking.status;
     const previousPaymentStatus = booking.paymentStatus;
+    const previousStartDate = booking.startDate;
+    const previousEndDate = booking.endDate;
+    const previousAdults = booking.adultMeals;
+    const previousChildren = booking.childMeals;
+    const previousGuestPhone = booking.guestPhone;
+    const previousNotes = booking.notes;
+    const previousMealPlanName = booking.mealPlan?.name ?? null;
+    const previousTotalPrice = booking.totalPrice;
 
     const startDate = dto.startDate ? new Date(dto.startDate) : booking.startDate;
     const endDate = dto.endDate ? new Date(dto.endDate) : booking.endDate;
@@ -753,12 +787,32 @@ export class AdminService {
       });
     }
 
-    await this.logBookingStatusMove({
+    await this.logAdminBookingEdit({
       bookingId: updated.id,
       bookingGroupId: updated.bookingGroupId,
       guestName: updated.guestName,
+      guestEmail: updated.guestEmail,
+      roomNumber: updated.room.number,
       previousStatus,
       nextStatus: updated.status,
+      previousPaymentStatus,
+      nextPaymentStatus: updated.paymentStatus,
+      previousStartDate,
+      nextStartDate: updated.startDate,
+      previousEndDate,
+      nextEndDate: updated.endDate,
+      previousAdults,
+      nextAdults: updated.adultMeals,
+      previousChildren,
+      nextChildren: updated.childMeals,
+      previousGuestPhone,
+      nextGuestPhone: updated.guestPhone,
+      previousNotes,
+      nextNotes: updated.notes,
+      previousMealPlanName,
+      nextMealPlanName: updated.mealPlan?.name ?? null,
+      previousTotalPrice,
+      nextTotalPrice: updated.totalPrice,
     });
 
     return mapAdminBooking(updated);
@@ -817,10 +871,10 @@ export class AdminService {
     });
 
     await this.systemLogsService.create({
-      type: SystemLogType.admin_booking_deleted,
+      type: SystemLogType.booking_cancelled,
       bookingId: cancelledBooking.id,
       bookingGroupId: booking.bookingGroupId ?? undefined,
-      message: `Réservation supprimée via le panel admin pour ${booking.guestName}.`,
+      message: `Réservation annulée via le panel admin pour ${booking.guestName}.`,
       metadata: {
         bookingId: booking.id,
         bookingGroupId: booking.bookingGroupId,
@@ -1034,41 +1088,277 @@ export class AdminService {
     };
   }
 
-  private async logBookingStatusMove(input: {
+  private async ensureMealPlansForRoomType(roomTypeId: string) {
+    const mealPlans = await this.prisma.mealPlan.findMany({
+      select: { id: true },
+    });
+
+    if (!mealPlans.length) {
+      throw new BadRequestException(
+        'Aucune formule disponible. Lance le seed des formules avant de modifier ce type de chambre.',
+      );
+    }
+
+    await this.prisma.roomTypeMealPlan.createMany({
+      data: mealPlans.map((mealPlan) => ({
+        roomTypeId,
+        mealPlanId: mealPlan.id,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async logAdminBookingEdit(input: {
     bookingId: string;
     bookingGroupId: string | null;
     guestName: string;
+    guestEmail: string;
+    roomNumber: string;
     previousStatus: BookingStatus;
     nextStatus: BookingStatus;
+    previousPaymentStatus: PaymentStatus;
+    nextPaymentStatus: PaymentStatus;
+    previousStartDate: Date;
+    nextStartDate: Date;
+    previousEndDate: Date;
+    nextEndDate: Date;
+    previousAdults: number;
+    nextAdults: number;
+    previousChildren: number;
+    nextChildren: number;
+    previousGuestPhone: string | null;
+    nextGuestPhone: string | null;
+    previousNotes: string | null;
+    nextNotes: string | null;
+    previousMealPlanName: string | null;
+    nextMealPlanName: string | null;
+    previousTotalPrice: number;
+    nextTotalPrice: number;
   }) {
-    if (input.previousStatus === input.nextStatus) return;
+    const changes = this.getBookingEditChanges(input);
 
-    if (input.nextStatus === BookingStatus.checked_in) {
-      await this.systemLogsService.create({
-        type: SystemLogType.booking_check_in,
+    await this.systemLogsService.create({
+      type: this.getAdminBookingEditLogType(input.previousStatus, input.nextStatus),
+      bookingId: input.bookingId,
+      bookingGroupId: input.bookingGroupId ?? undefined,
+      message: this.getAdminBookingEditMessage(input, changes),
+      metadata: {
         bookingId: input.bookingId,
-        bookingGroupId: input.bookingGroupId ?? undefined,
-        message: `Check-in réservation pour ${input.guestName}.`,
-        metadata: {
-          previousStatus: input.previousStatus,
-          nextStatus: input.nextStatus,
-        },
-      });
+        bookingGroupId: input.bookingGroupId,
+        guestName: input.guestName,
+        guestEmail: input.guestEmail,
+        roomNumber: input.roomNumber,
 
-      return;
+        previousStatus: input.previousStatus,
+        nextStatus: input.nextStatus,
+        previousPaymentStatus: input.previousPaymentStatus,
+        nextPaymentStatus: input.nextPaymentStatus,
+
+        changes,
+        statusChanged: input.previousStatus !== input.nextStatus,
+        paymentChanged:
+          input.previousPaymentStatus !== input.nextPaymentStatus,
+        totalPrice: input.nextTotalPrice,
+      },
+    });
+  }
+
+  private getBookingEditChanges(input: {
+    previousStatus: BookingStatus;
+    nextStatus: BookingStatus;
+    previousPaymentStatus: PaymentStatus;
+    nextPaymentStatus: PaymentStatus;
+    previousStartDate: Date;
+    nextStartDate: Date;
+    previousEndDate: Date;
+    nextEndDate: Date;
+    previousAdults: number;
+    nextAdults: number;
+    previousChildren: number;
+    nextChildren: number;
+    previousGuestPhone: string | null;
+    nextGuestPhone: string | null;
+    previousNotes: string | null;
+    nextNotes: string | null;
+    previousMealPlanName: string | null;
+    nextMealPlanName: string | null;
+    previousTotalPrice: number;
+    nextTotalPrice: number;
+  }) {
+    const changes: Array<{
+      field: string;
+      label: string;
+      from?: string | number | null;
+      to?: string | number | null;
+    }> = [];
+
+    if (input.previousStatus !== input.nextStatus) {
+      changes.push({
+        field: 'status',
+        label: 'Statut',
+        from: this.getBookingStatusLabel(input.previousStatus),
+        to: this.getBookingStatusLabel(input.nextStatus),
+      });
     }
 
-    if (input.nextStatus === BookingStatus.checked_out) {
-      await this.systemLogsService.create({
-        type: SystemLogType.booking_check_out,
-        bookingId: input.bookingId,
-        bookingGroupId: input.bookingGroupId ?? undefined,
-        message: `Check-out réservation pour ${input.guestName}.`,
-        metadata: {
-          previousStatus: input.previousStatus,
-          nextStatus: input.nextStatus,
-        },
+    if (input.previousPaymentStatus !== input.nextPaymentStatus) {
+      changes.push({
+        field: 'paymentStatus',
+        label: 'Paiement',
+        from: this.getPaymentStatusLabel(input.previousPaymentStatus),
+        to: this.getPaymentStatusLabel(input.nextPaymentStatus),
       });
     }
+
+    if (!this.isSameDate(input.previousStartDate, input.nextStartDate)) {
+      changes.push({
+        field: 'startDate',
+        label: "Date d'arrivée",
+        from: this.formatDate(input.previousStartDate),
+        to: this.formatDate(input.nextStartDate),
+      });
+    }
+
+    if (!this.isSameDate(input.previousEndDate, input.nextEndDate)) {
+      changes.push({
+        field: 'endDate',
+        label: 'Date de départ',
+        from: this.formatDate(input.previousEndDate),
+        to: this.formatDate(input.nextEndDate),
+      });
+    }
+
+    if (
+      input.previousAdults !== input.nextAdults ||
+      input.previousChildren !== input.nextChildren
+    ) {
+      changes.push({
+        field: 'persons',
+        label: 'Voyageurs',
+        from: `${input.previousAdults} adulte(s), ${input.previousChildren} enfant(s)`,
+        to: `${input.nextAdults} adulte(s), ${input.nextChildren} enfant(s)`,
+      });
+    }
+
+    if ((input.previousGuestPhone ?? '') !== (input.nextGuestPhone ?? '')) {
+      changes.push({
+        field: 'guestPhone',
+        label: 'Téléphone',
+        from: input.previousGuestPhone,
+        to: input.nextGuestPhone,
+      });
+    }
+
+    if ((input.previousNotes ?? '') !== (input.nextNotes ?? '')) {
+      changes.push({
+        field: 'notes',
+        label: 'Notes',
+        from: input.previousNotes ? 'Renseignées' : 'Vides',
+        to: input.nextNotes ? 'Renseignées' : 'Vides',
+      });
+    }
+
+    if ((input.previousMealPlanName ?? '') !== (input.nextMealPlanName ?? '')) {
+      changes.push({
+        field: 'mealPlan',
+        label: 'Formule',
+        from: input.previousMealPlanName,
+        to: input.nextMealPlanName,
+      });
+    }
+
+    if (input.previousTotalPrice !== input.nextTotalPrice) {
+      changes.push({
+        field: 'totalPrice',
+        label: 'Total',
+        from: input.previousTotalPrice,
+        to: input.nextTotalPrice,
+      });
+    }
+
+    return changes;
+  }
+
+  private getAdminBookingEditMessage(
+    input: {
+      guestName: string;
+      previousStatus: BookingStatus;
+      nextStatus: BookingStatus;
+    },
+    changes: Array<{ label: string; from?: string | number | null; to?: string | number | null }>,
+  ) {
+    if (input.previousStatus !== input.nextStatus) {
+      if (input.nextStatus === BookingStatus.checked_in) {
+        return `Check-in réservation pour ${input.guestName}.`;
+      }
+
+      if (input.nextStatus === BookingStatus.checked_out) {
+        return `Check-out réservation pour ${input.guestName}.`;
+      }
+
+      if (input.nextStatus === BookingStatus.no_show) {
+        return `Client marqué pas venu pour ${input.guestName}.`;
+      }
+    }
+
+    if (!changes.length) {
+      return `Réservation sauvegardée via le panel admin pour ${input.guestName}.`;
+    }
+
+    const changedLabels = changes.map((change) => change.label).join(', ');
+
+    return `Réservation modifiée via le panel admin pour ${input.guestName}. Champ(s) modifié(s) : ${changedLabels}.`;
+  }
+
+  private getAdminBookingEditLogType(
+    previousStatus: BookingStatus,
+    nextStatus: BookingStatus,
+  ) {
+    if (previousStatus !== nextStatus) {
+      if (nextStatus === BookingStatus.checked_in) {
+        return SystemLogType.booking_check_in;
+      }
+
+      if (nextStatus === BookingStatus.checked_out) {
+        return SystemLogType.booking_check_out;
+      }
+
+      if (nextStatus === BookingStatus.no_show) {
+        return SystemLogType.booking_no_show;
+      }
+
+      if (nextStatus === BookingStatus.cancelled) {
+        return SystemLogType.booking_cancelled;
+      }
+    }
+
+    return SystemLogType.admin_booking_updated;
+  }
+
+  private getBookingStatusLabel(status: BookingStatus) {
+    if (status === BookingStatus.pending) return 'En attente';
+    if (status === BookingStatus.confirmed) return 'Réservée';
+    if (status === BookingStatus.checked_in) return 'Arrivé';
+    if (status === BookingStatus.checked_out) return 'Parti';
+    if (status === BookingStatus.no_show) return 'Pas venu';
+    if (status === BookingStatus.cancelled) return 'Annulée';
+
+    return status;
+  }
+
+  private getPaymentStatusLabel(status: PaymentStatus) {
+    return status === PaymentStatus.paid ? 'Payé' : 'Non payé';
+  }
+
+  private isSameDate(a: Date, b: Date) {
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  }
+
+  private formatDate(value: Date) {
+    return value.toLocaleDateString('fr-FR');
   }
 }

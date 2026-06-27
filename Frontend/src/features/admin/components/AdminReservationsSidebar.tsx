@@ -47,7 +47,7 @@ export default function AdminReservationsSidebar({ panel, onChange }: Props) {
           />
 
           <SidebarButton
-            label="Journal"
+            label="Activités"
             active={panel === "system-logs"}
             onClick={() => onChange("system-logs")}
           />

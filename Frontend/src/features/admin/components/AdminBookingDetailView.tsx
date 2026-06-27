@@ -13,6 +13,7 @@ import type {
   AdminRoomTypeDto,
 } from "@/features/admin/types";
 import { downloadAdminBookingInvoicePdf } from "../api/adminBookings.api";
+import AdminDateRangePicker from "./AdminDateRangePicker";
 
 type BookingAvailabilityResponse = Awaited<
   ReturnType<typeof getBookingAvailability>
@@ -316,25 +317,15 @@ export default function AdminBookingDetailView({
                   <section className="rounded-[20px] border border-[#d8d0c2] bg-white p-5">
                     <SectionTitle eyebrow="Section 2" title="Séjour" />
 
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                      <Field label="Arrivée">
-                        <TextInput
-                          type="date"
-                          value={startDate}
-                          onChange={setStartDate}
-                          disabled={busy}
-                        />
-                      </Field>
-
-                      <Field label="Départ">
-                        <TextInput
-                          type="date"
-                          value={endDate}
-                          onChange={setEndDate}
-                          disabled={busy}
-                        />
-                      </Field>
-                    </div>
+                    <div className="mt-4">
+  <AdminDateRangePicker
+    startDate={startDate}
+    endDate={endDate}
+    disabled={busy}
+    onStartDateChange={setStartDate}
+    onEndDateChange={setEndDate}
+  />
+</div>
 
                     <div className="mt-4">
                       <Field label="Notes internes">
@@ -813,7 +804,7 @@ function StatusSummary({
           <>
             <StatusLine color={WARNING_COLOR} label="À vérifier" />
             <div className="mt-3 rounded-xl bg-[#fff8e1] px-3 py-2 text-[11px] leading-4 text-[#6f4d00]">
-              <p className="font-semibold">Pourquoi ?</p>
+              <p className="font-semibold">À faire</p>
               <p className="mt-1">{warningReason}</p>
             </div>
           </>
@@ -1014,31 +1005,57 @@ function getBookingWarningReason({
 }) {
   if (!startDate || !endDate) return null;
 
-  const today = stripTime(new Date());
+  const now = new Date();
+  const today = stripTime(now);
+  const currentHour = now.getHours();
+
   const start = inputDateToLocalDate(startDate);
   const end = inputDateToLocalDate(endDate);
 
-  if (status === "pending") {
-    return "La réservation est encore en attente de confirmation.";
-  }
-
-  if (status === "confirmed" && start <= today && end > today) {
-    return "Le séjour a commencé ou commence aujourd’hui, mais le client n’est pas encore marqué comme arrivé.";
-  }
-
-  if (status === "confirmed" && end <= today) {
-    return "Le jour de départ est atteint ou dépassé, mais la réservation est toujours au statut réservée.";
-  }
-
-  if (status === "checked_in" && end <= today) {
-    return "Le jour de départ est atteint ou dépassé, mais le client n’est pas encore marqué comme parti.";
-  }
+  const startsToday = isSameCalendarDay(start, today);
+  const endsToday = isSameCalendarDay(end, today);
 
   if (status === "checked_in" && start > today) {
-    return "Le client est marqué comme arrivé alors que la date d’arrivée est encore future.";
+    return "Action attendue : vérifier les dates ou remettre en Réservée.";
+  }
+
+  if (status === "pending" && start <= today) {
+    return "Action attendue : confirmer ou annuler.";
+  }
+
+  if (
+    status === "confirmed" &&
+    startsToday &&
+    currentHour >= CHECKIN_WARNING_HOUR
+  ) {
+    return "Action attendue : marquer Arrivé ou Pas venu.";
+  }
+
+  if (status === "confirmed" && start < today) {
+    return "Action attendue : marquer Arrivé ou Pas venu.";
+  }
+
+  if (
+    status === "checked_in" &&
+    endsToday &&
+    currentHour >= CHECKOUT_WARNING_HOUR
+  ) {
+    return "Action attendue : marquer Parti.";
+  }
+
+  if (status === "checked_in" && end < today) {
+    return "Action attendue : marquer Parti.";
   }
 
   return null;
+}
+
+function isSameCalendarDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 function inputDateToLocalDate(value: string) {

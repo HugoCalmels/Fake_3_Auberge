@@ -18,8 +18,14 @@ type Props = {
   refreshKey: number;
 };
 
-const VISIBLE_DAYS = 7;
+const VISIBLE_DAYS = 10;
+const NAV_STEP_DAYS = VISIBLE_DAYS - 1;
 const FETCH_PADDING_DAYS = 45;
+const PLANNING_RANGE_STORAGE_KEY = "admin-planning-range-start";
+const PLANNING_ALERTS_STORAGE_KEY = "admin-planning-show-alerts";
+
+const CHECKIN_WARNING_HOUR = 18;
+const CHECKOUT_WARNING_HOUR = 12;
 
 const GRID_BORDER = "border-[#d8ccba]";
 const DEFAULT_CELL_BORDER = `border-b border-r ${GRID_BORDER}`;
@@ -30,6 +36,11 @@ const TODAY_CELL_BORDER = "border-b border-r border-[#abc1a9]";
 const TODAY_CELL_HOVER = "hover:bg-[#bed3ba]";
 const FUTURE_CELL_HOVER = "hover:bg-[#eadfcd]";
 
+const ROOM_COL_WIDTH = 150;
+const DAY_MIN_WIDTH = 0;
+const ROW_HEIGHT = 58;
+const CONTINUED_BOOKING_OVERFLOW_PX = 36;
+
 const STATUS_HELP_ITEMS = [
   {
     color: "bg-[#3F51B5]",
@@ -38,38 +49,71 @@ const STATUS_HELP_ITEMS = [
   },
   {
     color: "bg-[#0B8043]",
-    label: "Arrivé",
-    description: "Client marqué comme arrivé.",
+    label: "Arrivé / check-in",
+    description: "Client marqué comme arrivé dans l’établissement.",
   },
   {
     color: "bg-[#616161]",
-    label: "Parti",
-    description: "Client marqué comme parti.",
+    label: "Parti / check-out",
+    description: "Client marqué comme parti, séjour clôturé.",
   },
   {
     color: "bg-[#F4511E]",
     label: "Pas venu",
     description: "Client marqué comme no-show.",
   },
+];
+
+const ALERT_HELP_ITEMS = [
   {
-    color: "bg-[#F6BF26]",
-    label: "À vérifier",
+    label: "Arrivée non faite",
+    description: `Réservation confirmée, arrivée aujourd’hui, mais client pas marqué arrivé après ${CHECKIN_WARNING_HOUR}h00.`,
+  },
+  {
+    label: "Arrivée dépassée",
     description:
-      "Action humaine probablement nécessaire : réservation non confirmée, arrivée non marquée, départ non clôturé ou incohérence.",
+      "Date d’arrivée passée, mais réservation toujours confirmée.",
+  },
+  {
+    label: "Départ non fait",
+    description: `Client arrivé, départ aujourd’hui, mais pas marqué parti après ${CHECKOUT_WARNING_HOUR}h00.`,
+  },
+  {
+    label: "Départ dépassé",
+    description: "Date de départ passée, mais client toujours marqué arrivé.",
+  },
+  {
+    label: "Pending urgent",
+    description:
+      "Réservation en attente avec une arrivée prévue aujourd’hui ou déjà passée.",
+  },
+  {
+    label: "Incohérence métier",
+    description:
+      "Exemple : client marqué arrivé alors que sa date d’arrivée est encore future.",
   },
 ];
 
 export default function AdminReservationPlanningView({
-  rooms,
-  roomTypes,
+  rooms = [],
+  roomTypes = [],
   onSelectBooking,
   refreshKey,
 }: Props) {
   const today = getTodayInputDate();
 
-  const [rangeStart, setRangeStart] = useState(() =>
-    getWeekStartInputDate(today),
-  );
+  const [rangeStart, setRangeStart] = useState(() => {
+    if (typeof window === "undefined") {
+      return today;
+    }
+
+    const savedRangeStart = window.sessionStorage.getItem(
+      PLANNING_RANGE_STORAGE_KEY,
+    );
+
+    return savedRangeStart || today;
+  });
+
   const [planning, setPlanning] = useState<AdminPlanningResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,6 +123,24 @@ export default function AdminReservationPlanningView({
   const [createEndDate, setCreateEndDate] = useState("");
   const [createRoomId, setCreateRoomId] = useState("");
   const [lockRoom, setLockRoom] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(() => {
+    if (typeof window === "undefined") return false;
+
+    return (
+      window.sessionStorage.getItem(PLANNING_ALERTS_STORAGE_KEY) === "true"
+    );
+  });
+
+  useEffect(() => {
+    window.sessionStorage.setItem(PLANNING_RANGE_STORAGE_KEY, rangeStart);
+  }, [rangeStart]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(
+      PLANNING_ALERTS_STORAGE_KEY,
+      String(showAlerts),
+    );
+  }, [showAlerts]);
 
   const visibleDays = useMemo(
     () =>
@@ -90,12 +152,29 @@ export default function AdminReservationPlanningView({
 
   const rangeEnd = visibleDays[visibleDays.length - 1];
 
+  const sortedPlanningRooms = useMemo(() => {
+    if (!planning) return [];
+
+    return [...planning.rooms].sort(compareRoomsByNumber);
+  }, [planning]);
+
   const fetchStart = useMemo(
     () => addDaysToInputDate(rangeStart, -FETCH_PADDING_DAYS),
     [rangeStart],
   );
 
   const fetchEnd = useMemo(() => addDaysToInputDate(rangeEnd, 1), [rangeEnd]);
+
+  const visibleAlertCount = useMemo(() => {
+    if (!planning) return 0;
+
+    return (planning.bookings ?? []).filter(
+      (booking) =>
+        normalizeInputDate(booking.startDate) < fetchEnd &&
+        normalizeInputDate(booking.endDate) > rangeStart &&
+        Boolean(getBookingWarningReason(booking)),
+    ).length;
+  }, [fetchEnd, planning, rangeStart]);
 
   const loadPlanning = useCallback(async () => {
     setLoading(true);
@@ -135,6 +214,12 @@ export default function AdminReservationPlanningView({
     setCreateOpen(true);
   }
 
+  function handleSelectBooking(bookingId: string) {
+    if (typeof onSelectBooking === "function") {
+      onSelectBooking(bookingId);
+    }
+  }
+
   async function handleCreated() {
     await loadPlanning();
     setCreateOpen(false);
@@ -142,13 +227,13 @@ export default function AdminReservationPlanningView({
 
   return (
     <>
-      <section className="overflow-hidden rounded-[22px] border border-[#cfc2ad] bg-white shadow-sm">
-        <div className="border-b border-[#d8ccba] bg-white px-5 py-5">
-          <div className="mb-4">
+      <section className="w-full overflow-hidden rounded-[22px] border border-[#cfc2ad] bg-white shadow-sm">
+        <div className="border-b border-[#d8ccba] bg-white px-3 py-2">
+          <div className="mb-3">
             <h2 className="text-2xl font-semibold text-[#1e1e1e]">Planning</h2>
           </div>
 
-          <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[1fr_auto_1fr] xl:items-center">
+          <div className="flex flex-col gap-2 xl:grid xl:grid-cols-[1fr_auto_1fr] xl:items-center">
             <div className="text-sm text-[#6c675f] xl:justify-self-start">
               {formatRangeLabel(rangeStart, rangeEnd)}
             </div>
@@ -158,7 +243,7 @@ export default function AdminReservationPlanningView({
                 type="button"
                 onClick={() =>
                   setRangeStart((prev) =>
-                    addDaysToInputDate(prev, -VISIBLE_DAYS),
+                    addDaysToInputDate(prev, -NAV_STEP_DAYS),
                   )
                 }
                 className="cursor-pointer rounded-full border border-[#d8d0c2] bg-white px-4 py-2 text-sm font-medium text-[#314835] transition hover:bg-[#eee6da]"
@@ -168,7 +253,7 @@ export default function AdminReservationPlanningView({
 
               <button
                 type="button"
-                onClick={() => setRangeStart(getWeekStartInputDate(today))}
+                onClick={() => setRangeStart(today)}
                 className="cursor-pointer rounded-full border border-[#d8d0c2] bg-white px-4 py-2 text-sm font-medium text-[#314835] transition hover:bg-[#eee6da]"
               >
                 Aujourd’hui
@@ -178,7 +263,7 @@ export default function AdminReservationPlanningView({
                 type="button"
                 onClick={() =>
                   setRangeStart((prev) =>
-                    addDaysToInputDate(prev, VISIBLE_DAYS),
+                    addDaysToInputDate(prev, NAV_STEP_DAYS),
                   )
                 }
                 className="cursor-pointer rounded-full border border-[#d8d0c2] bg-white px-4 py-2 text-sm font-medium text-[#314835] transition hover:bg-[#eee6da]"
@@ -198,12 +283,26 @@ export default function AdminReservationPlanningView({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#6c675f]">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#6c675f]">
             <LegendItem color="bg-[#3F51B5]" label="Réservée" />
-            <LegendItem color="bg-[#0B8043]" label="Arrivé" />
-            <LegendItem color="bg-[#616161]" label="Parti" />
+            <LegendItem color="bg-[#0B8043]" label="Arrivé / check-in" />
+            <LegendItem color="bg-[#616161]" label="Parti / check-out" />
             <LegendItem color="bg-[#F4511E]" label="Pas venu" />
-            <LegendItem color="bg-[#F6BF26]" label="À vérifier" />
+
+            <button
+              type="button"
+              onClick={() => setShowAlerts((prev) => !prev)}
+              className={`inline-flex cursor-pointer items-center gap-1.5 rounded-[6px] border px-2 py-1 text-xs transition ${
+                showAlerts
+                  ? "border-[#D9A520] bg-[#fff7dc] text-[#8a6500]"
+                  : "border-[#d8d0c2] bg-white text-[#6c675f] hover:border-[#bfae96] hover:bg-[#f4f0e8] hover:text-[#314835]"
+              }`}
+              title="Afficher ou masquer les réservations à vérifier"
+            >
+              <span className="h-3.5 w-3.5 rounded-[4px] bg-[#F6BF26]" />
+              <span>À vérifier {visibleAlertCount > 0 ? `(${visibleAlertCount})` : ""}</span>
+            </button>
+
             <StatusHelpPopover />
           </div>
         </div>
@@ -221,37 +320,44 @@ export default function AdminReservationPlanningView({
         ) : (
           <div className="overflow-x-auto">
             <div
-              className="grid w-full min-w-[980px]"
+              className="grid w-full"
               style={{
-                gridTemplateColumns: `180px repeat(${visibleDays.length}, minmax(108px, 1fr))`,
+                gridTemplateColumns: `${ROOM_COL_WIDTH}px minmax(0, 1fr)`,
               }}
             >
-              <div className="sticky left-0 z-10 border-b border-r border-[#d8ccba] bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#756f67]">
+              <div className="sticky left-0 z-20 border-b border-r border-[#d8ccba] bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#756f67]">
                 Chambres
               </div>
 
-              {visibleDays.map((day, index) => {
-                const isLastColumn = index === visibleDays.length - 1;
+              <div
+                className="grid border-b border-[#d8ccba] bg-white"
+                style={{
+                  gridTemplateColumns: `repeat(${visibleDays.length}, minmax(0, 1fr))`,
+                }}
+              >
+                {visibleDays.map((day, index) => {
+                  const isLastColumn = index === visibleDays.length - 1;
 
-                return (
-                  <div
-                    key={day}
-                    className={`border-b border-[#d8ccba] bg-white px-2 py-3 text-center ${
-                      isLastColumn ? "" : "border-r"
-                    }`}
-                  >
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#756f67]">
-                      {formatWeekdayHeader(day)}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#1e1e1e]">
-                      {formatDayHeader(day)}
-                    </p>
-                  </div>
-                );
-              })}
+                  return (
+                    <div
+                      key={day}
+                      className={`px-1 py-2 text-center ${
+                        isLastColumn ? "" : "border-r border-[#d8ccba]"
+                      }`}
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#756f67]">
+                        {formatWeekdayHeader(day)}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-[#1e1e1e]">
+                        {formatDayHeader(day)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
 
-              {planning.rooms.map((room) => {
-                const roomBookings = planning.bookings.filter(
+              {sortedPlanningRooms.map((room) => {
+                const roomBookings = (planning.bookings ?? []).filter(
                   (booking) => booking.roomId === room.id,
                 );
 
@@ -262,7 +368,9 @@ export default function AdminReservationPlanningView({
                     days={visibleDays}
                     today={today}
                     bookings={roomBookings}
-                    onSelectBooking={onSelectBooking}
+                    roomTypes={roomTypes}
+                    showAlerts={showAlerts}
+                    onSelectBooking={handleSelectBooking}
                     onCreateAtCell={(day) => openCreateFromGrid(day, room.id)}
                   />
                 );
@@ -278,8 +386,8 @@ export default function AdminReservationPlanningView({
         initialEndDate={createEndDate}
         initialRoomId={createRoomId}
         lockRoom={lockRoom}
-        rooms={rooms}
-        roomTypes={roomTypes}
+        rooms={rooms ?? []}
+        roomTypes={roomTypes ?? []}
         onClose={() => setCreateOpen(false)}
         onCreated={handleCreated}
       />
@@ -291,136 +399,343 @@ function GridRow({
   room,
   days,
   today,
-  bookings,
+  bookings = [],
+  roomTypes = [],
+  showAlerts,
   onSelectBooking,
   onCreateAtCell,
 }: {
   room: AdminPlanningResponse["rooms"][number];
   days: string[];
   today: string;
-  bookings: AdminPlanningResponse["bookings"];
+  bookings?: AdminPlanningResponse["bookings"];
+  roomTypes?: AdminRoomTypeDto[];
+  showAlerts: boolean;
   onSelectBooking: (bookingId: string) => void;
   onCreateAtCell: (day: string) => void;
 }) {
+  const visibleStart = days[0];
+  const visibleEndExclusive = addDaysToInputDate(days[days.length - 1], 1);
+
+  const visibleBookings = bookings.filter(
+    (booking) =>
+      normalizeInputDate(booking.startDate) < visibleEndExclusive &&
+      normalizeInputDate(booking.endDate) > visibleStart,
+  );
+
+  const roomNightPrice = getRoomNightPriceLabel(room, roomTypes);
+
   return (
     <>
-      <div className="sticky left-0 z-10 border-b border-r border-[#d8ccba] bg-white px-4 py-3">
+      <div
+        className="sticky left-0 z-20 border-b border-r border-[#d8ccba] bg-white px-3 py-2"
+        style={{ minHeight: ROW_HEIGHT }}
+      >
         <p className="text-lg font-semibold text-[#1e1e1e]">{room.number}</p>
         <p className="text-sm text-[#6c675f]">{room.roomTypeName ?? "—"}</p>
+        {roomNightPrice ? (
+          <p className="mt-0.5 text-xs font-medium text-[#8a7a62]">
+            {roomNightPrice}
+          </p>
+        ) : null}
       </div>
 
-      {days.map((day, index) => {
-        const booking = bookings.find((item) =>
-          isDayInsideBooking(day, item.startDate, item.endDate),
-        );
+      <div
+        className="relative overflow-hidden"
+        style={{ minHeight: ROW_HEIGHT }}
+        onClick={(event) => {
+          const target = event.target as HTMLElement;
+          const bookingButton = target.closest("[data-booking-id]");
 
-        const isPast = isPastDay(day);
-        const isToday = day === today;
-        const isLastColumn = index === days.length - 1;
+          if (bookingButton) return;
 
-        if (booking) {
-          const segment = getBookingSegment(
-            day,
-            booking.startDate,
-            booking.endDate,
+          const rect = event.currentTarget.getBoundingClientRect();
+          const x = event.clientX - rect.left;
+          const dayIndex = clamp(
+            Math.floor((x / rect.width) * days.length),
+            0,
+            days.length - 1,
+          );
+          const day = days[dayIndex];
+
+          if (!day) return;
+
+          const bookingAtCell = bookings.find((booking) =>
+            isDayInsideBooking(day, booking.startDate, booking.endDate),
           );
 
-          const previousDay = addDaysToInputDate(day, -1);
-          const nextDay = addDaysToInputDate(day, 1);
+          if (bookingAtCell && typeof onSelectBooking === "function") {
+            onSelectBooking(bookingAtCell.id);
+            return;
+          }
 
-          const continuesFromPreviousVisibleDay =
-            days.includes(previousDay) &&
-            isDayInsideBooking(previousDay, booking.startDate, booking.endDate);
+          if (typeof onCreateAtCell === "function") {
+            onCreateAtCell(day);
+          }
+        }}
+      >
+        <div
+          className="absolute inset-0 z-0 grid"
+          style={{
+            gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
+          }}
+        >
+          {days.map((day, index) => {
+            const isPast = isPastDay(day);
+            const isToday = day === today;
+            const isLastColumn = index === days.length - 1;
 
-          const continuesToNextVisibleDay =
-            days.includes(nextDay) &&
-            isDayInsideBooking(nextDay, booking.startDate, booking.endDate);
+            return (
+              <div
+                key={`${room.id}-${day}`}
+                className={`relative z-0 min-h-[58px] cursor-pointer transition ${
+                  isPast
+                    ? `${PAST_CELL_BORDER} bg-[#e8e8e8] hover:bg-[#dddddd]`
+                    : isToday
+                      ? `${TODAY_CELL_BORDER} ${TODAY_CELL_BG} ${TODAY_CELL_HOVER}`
+                      : `${DEFAULT_CELL_BORDER} bg-white ${FUTURE_CELL_HOVER}`
+                } ${isLastColumn ? "border-r-0" : ""}`}
+              />
+            );
+          })}
+        </div>
 
-          const startsBeforeVisibleRange =
-            day === days[0] && normalizeInputDate(booking.startDate) < day;
+        <div className="pointer-events-none absolute inset-0 z-30">
+          {visibleBookings.map((booking) => {
+            const placement = getBookingPlacement(
+              booking.startDate,
+              booking.endDate,
+              visibleStart,
+              days.length,
+            );
 
-          const endsAfterVisibleRange =
-            day === days[days.length - 1] &&
-            normalizeInputDate(booking.endDate) > nextDay;
+            const warningReason = getBookingWarningReason(booking);
+            const hasDateWarning = Boolean(warningReason);
+            const displayAlert = showAlerts && hasDateWarning;
+            const colors = displayAlert
+              ? getAlertBookingColors()
+              : getBookingColors(booking.status);
+            const paymentStatus = getBookingPaymentStatus(booking);
 
-          const isFirstVisibleSegment =
-            !continuesFromPreviousVisibleDay && !startsBeforeVisibleRange;
+            const startsBeforeVisible =
+              normalizeInputDate(booking.startDate) < visibleStart;
 
-          const isLastVisibleSegment =
-            !continuesToNextVisibleDay && !endsAfterVisibleRange;
+            const endsAfterVisible =
+              getBookingRightUnits(booking.endDate, visibleStart) > days.length;
 
-          const warningReason = getBookingWarningReason(booking);
-          const hasDateWarning = Boolean(warningReason);
-          const colors = getBookingColors(booking.status, hasDateWarning);
-          const paymentStatus = getBookingPaymentStatus(booking);
-
-          return (
-            <div
-              key={`${room.id}-${day}`}
-              className={`min-h-[72px] border-b ${
-                isLastVisibleSegment && !isLastColumn ? "border-r" : ""
-              } ${
-                isPast
-                  ? "border-[#c8bba8] bg-[#e8e8e8]"
-                  : isToday
-                    ? "border-[#abc1a9] bg-[#e5eee4]"
-                    : "border-[#d8ccba] bg-white"
-              } ${getBookingCellPaddingClass(
-                isFirstVisibleSegment,
-                isLastVisibleSegment,
-              )}`}
-            >
+            return (
               <button
+                key={booking.id}
                 type="button"
-                onClick={() => onSelectBooking(booking.id)}
-                className={`relative flex min-h-[68px] w-full cursor-pointer flex-col justify-start overflow-hidden px-2 py-2 text-left text-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition ${colors.card} ${getBookingRadiusClass(
-                  isFirstVisibleSegment,
-                  isLastVisibleSegment,
-                )}`}
+                data-booking-id={booking.id}
+                onMouseDownCapture={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClickCapture={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (typeof onSelectBooking === "function") {
+                    onSelectBooking(booking.id);
+                  }
+                }}
+                className="group pointer-events-auto absolute top-[5px] bottom-[5px] z-10 cursor-pointer overflow-visible px-0 text-left text-white transition hover:z-20"
+                style={{
+                  left:
+                    startsBeforeVisible && endsAfterVisible
+                      ? `calc(${placement.leftPercent}% - ${CONTINUED_BOOKING_OVERFLOW_PX}px)`
+                      : startsBeforeVisible
+                        ? `calc(${placement.leftPercent}% - ${CONTINUED_BOOKING_OVERFLOW_PX}px)`
+                        : `calc(${placement.leftPercent}% + 10px)`,
+                  width:
+                    startsBeforeVisible && endsAfterVisible
+                      ? `calc(${placement.widthPercent}% + ${CONTINUED_BOOKING_OVERFLOW_PX * 2}px)`
+                      : startsBeforeVisible
+                        ? `calc(${placement.widthPercent}% + ${CONTINUED_BOOKING_OVERFLOW_PX}px)`
+                        : endsAfterVisible
+                          ? `calc(${placement.widthPercent}% - 10px + ${CONTINUED_BOOKING_OVERFLOW_PX * 2}px)`
+                          : `calc(${placement.widthPercent}% - 14px)`,
+                }}
                 title={
                   warningReason
-                    ? `${booking.guestName} - ${segment.current}/${segment.total}\n\nÀ vérifier : ${warningReason}`
-                    : `${booking.guestName} - ${segment.current}/${segment.total}`
+                    ? `${booking.guestName}\n\n⚠ À vérifier : ${warningReason}`
+                    : booking.guestName
                 }
               >
-                <p className="truncate text-[13px] font-semibold leading-4 text-white">
-                  {booking.guestName}
-                </p>
+                <span className="absolute inset-[-4px] z-0 block" />
 
-                <p className="mt-0.5 text-[11px] font-semibold leading-4 text-white/90">
-                  {segment.current}/{segment.total}
-                </p>
-
-                <div
-                  className={`absolute inset-x-0 bottom-0 h-[18px] px-2 text-[10px] font-semibold uppercase leading-[18px] tracking-[0.08em] text-white ${
-                    paymentStatus === "unpaid"
-                      ? colors.paymentUnpaid
-                      : colors.paymentPaid
-                  }`}
+                <span
+                  className={`pointer-events-none absolute inset-0 z-10 overflow-hidden rounded-[12px] shadow-[0_1px_4px_rgba(0,0,0,0.16)] transition group-hover:brightness-110 group-hover:shadow-[0_3px_10px_rgba(0,0,0,0.20)] ${colors.card}`}
+                  style={{
+                    transform: "skewX(-28deg)",
+                    transformOrigin: "center",
+                    borderTopLeftRadius: 12,
+                    borderBottomLeftRadius: 12,
+                    borderTopRightRadius: 12,
+                    borderBottomRightRadius: 12,
+                  }}
                 >
-                  {paymentStatus === "unpaid" ? "Non payé" : "Payé"}
-                </div>
-              </button>
-            </div>
-          );
-        }
+                  <span
+                    className={`absolute inset-x-0 bottom-0 h-[12px] ${
+                      paymentStatus === "unpaid"
+                        ? colors.paymentUnpaid
+                        : colors.paymentPaid
+                    }`}
+                  />
+                </span>
 
-        return (
-          <button
-            key={`${room.id}-${day}`}
-            type="button"
-            onClick={() => onCreateAtCell(day)}
-            className={`min-h-[72px] cursor-pointer p-[2px] transition ${
-              isPast
-                ? `${PAST_CELL_BORDER} bg-[#e8e8e8] hover:bg-[#dddddd]`
-                : isToday
-                  ? `${TODAY_CELL_BORDER} ${TODAY_CELL_BG} ${TODAY_CELL_HOVER}`
-                  : `${DEFAULT_CELL_BORDER} bg-white ${FUTURE_CELL_HOVER}`
-            } ${isLastColumn ? "border-r-0" : ""}`}
-          />
-        );
-      })}
+                {displayAlert ? (
+                  <>
+                    <span
+                      className="pointer-events-none absolute inset-[-2px] z-20 rounded-[14px] border-2 border-[#F6BF26]"
+                      style={{
+                        transform: "skewX(-28deg)",
+                        transformOrigin: "center",
+                        borderTopLeftRadius: 14,
+                        borderBottomLeftRadius: 14,
+                        borderTopRightRadius: 14,
+                        borderBottomRightRadius: 14,
+                      }}
+                    />
+
+                  </>
+                ) : null}
+
+                <span className="pointer-events-none absolute inset-x-0 top-0 bottom-[12px] z-20 flex items-center justify-center px-3 text-center">
+                  <span className="max-w-full truncate text-[12px] font-semibold leading-4 text-white">
+                    {booking.guestName}
+                  </span>
+                </span>
+
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex h-[12px] items-center justify-center px-2 text-[7.5px] font-semibold uppercase leading-[12px] tracking-[0.08em] text-white">
+                  {paymentStatus === "unpaid" ? "Non payé" : "Payé"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </>
+  );
+}
+
+function compareRoomsByNumber(
+  a: AdminPlanningResponse["rooms"][number],
+  b: AdminPlanningResponse["rooms"][number],
+) {
+  const aParsed = parseRoomNumber(a.number);
+  const bParsed = parseRoomNumber(b.number);
+
+  if (aParsed.numeric !== bParsed.numeric) {
+    return aParsed.numeric - bParsed.numeric;
+  }
+
+  return aParsed.suffix.localeCompare(bParsed.suffix, "fr-FR", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function parseRoomNumber(value: string) {
+  const cleanValue = value.trim();
+  const match = cleanValue.match(/^(\d+)(.*)$/);
+
+  if (!match) {
+    return {
+      numeric: Number.MAX_SAFE_INTEGER,
+      suffix: cleanValue,
+    };
+  }
+
+  return {
+    numeric: Number(match[1]),
+    suffix: match[2] ?? "",
+  };
+}
+
+function getRoomNightPriceLabel(
+  room: AdminPlanningResponse["rooms"][number],
+  roomTypes: AdminRoomTypeDto[],
+) {
+  const extendedRoom = room as AdminPlanningResponse["rooms"][number] & {
+    roomTypeId?: string | null;
+    roomTypeCode?: string | null;
+    basePrice?: number | null;
+    roomTypeBasePrice?: number | null;
+  };
+
+  const directPrice =
+    typeof extendedRoom.basePrice === "number"
+      ? extendedRoom.basePrice
+      : typeof extendedRoom.roomTypeBasePrice === "number"
+        ? extendedRoom.roomTypeBasePrice
+        : null;
+
+  if (directPrice !== null) {
+    return formatNightPrice(directPrice);
+  }
+
+  const matchedRoomType = roomTypes.find((roomType) => {
+    const typedRoomType = roomType as AdminRoomTypeDto & {
+      code?: string | null;
+    };
+
+    return (
+      roomType.id === extendedRoom.roomTypeId ||
+      typedRoomType.code === extendedRoom.roomTypeCode ||
+      roomType.name === room.roomTypeName
+    );
+  });
+
+  if (!matchedRoomType || typeof matchedRoomType.basePrice !== "number") {
+    return null;
+  }
+
+  return formatNightPrice(matchedRoomType.basePrice);
+}
+
+function formatNightPrice(value: number) {
+  return `${value.toLocaleString("fr-FR")} € / nuit`;
+}
+
+function getBookingPlacement(
+  startDate: string,
+  endDate: string,
+  visibleStart: string,
+  visibleDaysCount: number,
+) {
+  const startDiff = differenceInCalendarDays(
+    inputDateToLocalDate(startDate),
+    inputDateToLocalDate(visibleStart),
+  );
+
+  const endDiff = differenceInCalendarDays(
+    inputDateToLocalDate(endDate),
+    inputDateToLocalDate(visibleStart),
+  );
+
+  const rawLeftUnits = startDiff + 0.5;
+  const rawRightUnits = endDiff + 0.5;
+
+  const leftUnits = clamp(rawLeftUnits, 0, visibleDaysCount);
+  const rightUnits = clamp(rawRightUnits, 0, visibleDaysCount);
+
+  const leftPercent = (leftUnits / visibleDaysCount) * 100;
+  const widthPercent =
+    (Math.max(0.35, rightUnits - leftUnits) / visibleDaysCount) * 100;
+
+  return {
+    leftPercent,
+    widthPercent,
+  };
+}
+
+function getBookingRightUnits(endDate: string, visibleStart: string) {
+  return (
+    differenceInCalendarDays(
+      inputDateToLocalDate(endDate),
+      inputDateToLocalDate(visibleStart),
+    ) + 0.5
   );
 }
 
@@ -439,86 +754,52 @@ function StatusHelpPopover() {
       <button
         type="button"
         className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-[#d8d0c2] bg-white text-[11px] font-semibold text-[#6c675f] transition hover:bg-[#eee6da] hover:text-[#314835]"
-        aria-label="Comprendre les statuts"
+        aria-label="Comprendre les alertes du planning"
       >
         ?
       </button>
 
-      <div className="pointer-events-none absolute left-1/2 top-7 z-50 hidden w-[360px] -translate-x-1/2 rounded-2xl border border-[#d8ccba] bg-white p-4 text-left text-xs text-[#5f5a52] shadow-[0_14px_34px_rgba(0,0,0,0.16)] group-hover:block">
-        <div className="mb-3">
-          <p className="text-sm font-semibold text-[#1e1e1e]">
-            Comprendre les statuts
+      <div className="pointer-events-none absolute left-1/2 top-7 z-50 hidden w-[330px] -translate-x-1/2 rounded-2xl border border-[#d8ccba] bg-white p-3 text-left text-xs text-[#5f5a52] shadow-[0_14px_34px_rgba(0,0,0,0.16)] group-hover:block">
+        <p className="text-sm font-semibold text-[#1e1e1e]">
+          À quoi sert “À vérifier” ?
+        </p>
+
+        <p className="mt-1.5 leading-4">
+          Ce n’est <strong>pas un statut</strong>. C’est un filtre pour repérer
+          les réservations qui demandent une action du gérant.
+        </p>
+
+        <div className="mt-3 space-y-1.5 leading-4">
+          <p>
+            <strong>Arrivée :</strong> client pas marqué arrivé après{" "}
+            <strong>{CHECKIN_WARNING_HOUR}h</strong>.
           </p>
-          <p className="mt-1 text-[11px] leading-4 text-[#756f67]">
-            Les couleurs du planning indiquent l’état opérationnel d’une
-            réservation.
+          <p>
+            <strong>Départ :</strong> client pas marqué parti après{" "}
+            <strong>{CHECKOUT_WARNING_HOUR}h</strong>.
+          </p>
+          <p>
+            <strong>Retard :</strong> arrivée ou départ déjà dépassé.
+          </p>
+          <p>
+            <strong>Pending :</strong> réservation en attente qui arrive
+            aujourd’hui ou avant.
+          </p>
+          <p>
+            <strong>Incohérence :</strong> état impossible à vérifier
+            manuellement.
           </p>
         </div>
 
-        <div className="space-y-2">
-          {STATUS_HELP_ITEMS.map((item) => (
-            <div key={item.label} className="flex gap-2">
-              <span
-                className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded-[4px] ${item.color}`}
-              />
-              <div>
-                <p className="font-semibold text-[#1e1e1e]">{item.label}</p>
-                <p className="mt-0.5 leading-4">{item.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-3 rounded-xl bg-[#f4f0e8] p-3 text-[11px] leading-4 text-[#5f5a52]">
-          <p className="font-semibold text-[#314835]">
-            Déclenchement “À vérifier” en MVP
-          </p>
-          <p className="mt-1">
-            La logique actuelle est basée sur la date uniquement : l’alerte se
-            déclenche à <strong>00:00</strong> lorsque le jour concerné commence.
-          </p>
-          <p className="mt-1">
-            Version métier avancée possible : utiliser les horaires réels de
-            l’établissement, par exemple check-in après 15h/16h et check-out
-            après 10h/11h.
-          </p>
+        <div className="mt-3 rounded-xl bg-[#fff7dc] p-2.5 leading-4 text-[#6a4f00]">
+          Active le bouton <strong>À vérifier</strong> pour colorer ces
+          réservations en jaune dans le planning.
         </div>
       </div>
     </div>
   );
 }
 
-function getBookingCellPaddingClass(isFirst: boolean, isLast: boolean) {
-  if (isFirst && isLast) return "p-[2px]";
-  if (isFirst) return "py-[2px] pl-[2px]";
-  if (isLast) return "py-[2px] pr-[2px]";
-  return "py-[2px]";
-}
-
-function getBookingRadiusClass(isFirst: boolean, isLast: boolean) {
-  if (isFirst && isLast) return "rounded-[8px]";
-  if (isFirst) return "rounded-l-[8px] rounded-r-none";
-  if (isLast) return "rounded-l-none rounded-r-[8px]";
-  return "rounded-none";
-}
-
-function getBookingSegment(day: string, startDate: string, endDate: string) {
-  const current =
-    differenceInCalendarDays(
-      inputDateToLocalDate(day),
-      inputDateToLocalDate(startDate),
-    ) + 1;
-
-  const total = differenceInCalendarDays(
-    inputDateToLocalDate(endDate),
-    inputDateToLocalDate(startDate),
-  );
-
-  return {
-    current: Math.max(1, current),
-    total: Math.max(1, total),
-  };
-}
 
 function differenceInCalendarDays(a: Date, b: Date) {
   const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
@@ -527,15 +808,15 @@ function differenceInCalendarDays(a: Date, b: Date) {
   return Math.round((utcA - utcB) / 86_400_000);
 }
 
-function getBookingColors(status: string, hasDateWarning = false) {
-  if (hasDateWarning) {
-    return {
-      card: "border-[#D9A520] bg-[#D9A520] hover:bg-[#C89316]",
-      paymentPaid: "bg-[#33B679]",
-      paymentUnpaid: "bg-[#A85F12]",
-    };
-  }
+function getAlertBookingColors() {
+  return {
+    card: "border-[#D9A520] bg-[#D9A520] hover:bg-[#C89316]",
+    paymentPaid: "bg-[#8A6500]",
+    paymentUnpaid: "bg-[#A85F12]",
+  };
+}
 
+function getBookingColors(status: string) {
   switch (status) {
     case "checked_in":
       return {
@@ -580,28 +861,46 @@ function getBookingPaymentStatus(
 function getBookingWarningReason(
   booking: AdminPlanningResponse["bookings"][number],
 ) {
-  const today = stripTime(new Date());
+  const now = new Date();
+  const today = stripTime(now);
+  const currentHour = now.getHours();
+
   const start = inputDateToLocalDate(booking.startDate);
   const end = inputDateToLocalDate(booking.endDate);
 
-  if (booking.status === "pending") {
-    return "réservation non confirmée. En MVP, ce statut est affiché en alerte.";
-  }
-
-  if (booking.status === "confirmed" && start <= today && end > today) {
-    return "arrivée prévue aujourd’hui ou déjà commencée, mais client pas encore marqué arrivé. Trigger MVP : 00:00 le jour d’arrivée.";
-  }
-
-  if (booking.status === "confirmed" && end <= today) {
-    return "séjour terminé ou jour de départ atteint, mais réservation toujours confirmée. Trigger MVP : 00:00 le jour du départ.";
-  }
-
-  if (booking.status === "checked_in" && end <= today) {
-    return "départ prévu aujourd’hui ou passé, mais client pas encore marqué parti. Trigger MVP : 00:00 le jour du départ.";
-  }
+  const startsToday = isSameCalendarDay(start, today);
+  const endsToday = isSameCalendarDay(end, today);
 
   if (booking.status === "checked_in" && start > today) {
-    return "incohérence métier : client marqué arrivé avant sa date d’arrivée.";
+    return "Action attendue : vérifier les dates ou remettre en Réservée.";
+  }
+
+  if (booking.status === "pending" && start <= today) {
+    return "Action attendue : confirmer ou annuler.";
+  }
+
+  if (
+    booking.status === "confirmed" &&
+    startsToday &&
+    currentHour >= CHECKIN_WARNING_HOUR
+  ) {
+    return "Action attendue : marquer Arrivé ou Pas venu.";
+  }
+
+  if (booking.status === "confirmed" && start < today) {
+    return "Action attendue : marquer Arrivé ou Pas venu.";
+  }
+
+  if (
+    booking.status === "checked_in" &&
+    endsToday &&
+    currentHour >= CHECKOUT_WARNING_HOUR
+  ) {
+    return "Action attendue : marquer Parti.";
+  }
+
+  if (booking.status === "checked_in" && end < today) {
+    return "Action attendue : marquer Parti.";
   }
 
   return null;
@@ -617,6 +916,14 @@ function isDayInsideBooking(day: string, startDate: string, endDate: string) {
 
 function isPastDay(value: string) {
   return inputDateToLocalDate(value) < stripTime(new Date());
+}
+
+function isSameCalendarDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 function stripTime(date: Date) {
@@ -638,15 +945,6 @@ function getTodayInputDate() {
   return toInputDate(new Date());
 }
 
-function getWeekStartInputDate(input: string) {
-  const date = inputDateToLocalDate(input);
-  const day = date.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-
-  date.setDate(date.getDate() + diffToMonday);
-
-  return toInputDate(date);
-}
 
 function addDaysToInputDate(input: string, days: number) {
   const date = inputDateToLocalDate(input);
@@ -661,6 +959,11 @@ function toInputDate(date: Date) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function formatWeekdayHeader(value: string) {

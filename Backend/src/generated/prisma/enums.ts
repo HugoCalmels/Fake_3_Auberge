@@ -59,9 +59,12 @@ export const SystemLogType = {
   website_booking_validated: 'website_booking_validated',
   website_booking_failed: 'website_booking_failed',
   admin_booking_created: 'admin_booking_created',
+  admin_booking_updated: 'admin_booking_updated',
   admin_booking_deleted: 'admin_booking_deleted',
   booking_check_in: 'booking_check_in',
-  booking_check_out: 'booking_check_out'
+  booking_check_out: 'booking_check_out',
+  booking_no_show: 'booking_no_show',
+  booking_cancelled: 'booking_cancelled'
 } as const
 
 export type SystemLogType = (typeof SystemLogType)[keyof typeof SystemLogType]

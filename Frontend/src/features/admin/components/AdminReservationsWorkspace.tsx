@@ -72,7 +72,7 @@ statsLoading,
   }
 
   return (
-    <div className="space-y-8 pb-16">
+ <div className="w-full space-y-7 pb-16">
       <div className="overflow-hidden rounded-[22px] border border-[#d8d0c2] bg-white shadow-sm">
         <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
@@ -93,8 +93,7 @@ statsLoading,
           </button>
         </div>
       </div>
-
-      <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+<div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
         <AdminReservationsSidebar
           panel={panel}
           onChange={(nextPanel) => {
