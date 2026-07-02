@@ -21,7 +21,7 @@ export default function GroupsSection({
   }
 
   return (
-    <section id="groupes" className="bg-[#314835]">
+    <section id="groupes" className="bg-[#314835] scroll-mt-12">
       <div className="mx-auto max-w-[1280px] px-4 pb-20 pt-24 sm:px-6 lg:px-8 lg:pb-24 lg:pt-28">
         <div className="max-w-[860px]">
           <h2 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] !text-[#f4efe7] sm:text-5xl">

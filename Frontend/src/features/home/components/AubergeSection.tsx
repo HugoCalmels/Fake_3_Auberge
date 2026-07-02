@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export default function AubergeSection() {
   return (
-    <section id="auberge" className=" bg-[#ece7df]">
+    <section id="auberge" className=" bg-[#ece7df] scroll-mt-12">
        <div className="mx-auto grid max-w-[1280px] gap-12 px-4 pt-28 pb-20 sm:px-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:px-8 lg:pt-36 lg:pb-24">
         <div className="max-w-[860px]">
           <h2 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl">

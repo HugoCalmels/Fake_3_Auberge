@@ -75,7 +75,7 @@ export default function RoomsSection({
   }
 
   return (
-    <section id="hebergement" className="bg-[#f4efe7]">
+    <section id="hebergement" className="bg-[#f4efe7] scroll-mt-12">
       <div className="mx-auto max-w-[1280px] pb-16 pt-20 md:pb-20 md:pt-24 lg:pb-24 lg:pt-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="max-w-[820px]">

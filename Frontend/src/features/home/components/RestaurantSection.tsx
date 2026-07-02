@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export default function RestaurantSection() {
   return (
-    <section id="restaurant" className=" overflow-hidden bg-[#e7e1d7]">
+    <section id="restaurant" className=" overflow-hidden bg-[#e7e1d7] scroll-mt-12">
       <div className="mx-auto grid max-w-[1280px] gap-12 px-4 pt-24 pb-20 sm:px-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:px-8 lg:pt-28 lg:pb-24">
         <div className="max-w-[820px]">
           <h2 className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl">

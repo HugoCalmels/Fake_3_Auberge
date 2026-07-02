@@ -36,6 +36,8 @@ type Props = {
 };
 
 const WARNING_COLOR = "bg-[#F6BF26]";
+const CHECKIN_WARNING_HOUR = 18;
+const CHECKOUT_WARNING_HOUR = 11;
 
 const BOOKING_STATUS_OPTIONS: Array<{
   value: AdminBookingStatus;

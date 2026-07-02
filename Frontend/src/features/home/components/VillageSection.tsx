@@ -3,7 +3,7 @@ import { FaCarSide, FaSkiing } from "react-icons/fa";
 
 export default function VillageSection() {
   return (
-    <section id="village" className="overflow-hidden bg-[#f4efe7]">
+    <section id="village" className="overflow-hidden bg-[#f4efe7] scroll-mt-12">
       <div className="mx-auto grid max-w-[1280px] gap-10 px-4 pt-24 pb-20 sm:px-6 lg:grid-cols-[minmax(0,1fr)_290px] lg:px-8 lg:pt-28 lg:pb-24">
         <div>
 <div className="max-w-[720px]">

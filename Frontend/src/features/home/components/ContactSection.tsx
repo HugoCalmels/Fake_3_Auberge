@@ -91,7 +91,7 @@ export default function ContactSection() {
   }
 
   return (
-<section id="contact" className=" overflow-hidden bg-[#e7e1d7]">
+<section id="contact" className=" overflow-hidden bg-[#e7e1d7] scroll-mt-12">
       <div className="mx-auto max-w-[1280px] px-4 pt-24 pb-20 sm:px-6 lg:px-8 lg:pt-28 lg:pb-24">
 <div className="max-w-[720px]">
   <h2

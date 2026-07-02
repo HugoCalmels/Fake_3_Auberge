@@ -72,7 +72,6 @@ export default function AdminBookingFormModal({
 
   const [paymentStatus, setPaymentStatus] =
     useState<AdminPaymentStatus>("unpaid");
-  const [paymentNote, setPaymentNote] = useState("");
 
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>("all");
   const [offers, setOffers] = useState<AdminRoomAvailability[]>([]);
@@ -95,7 +94,6 @@ export default function AdminBookingFormModal({
     setEndDate(initialEndDate);
     setNotes("");
     setPaymentStatus("unpaid");
-    setPaymentNote("");
     setRoomTypeFilter("all");
     setOffers([]);
     setSelectedRooms([]);
@@ -243,7 +241,6 @@ export default function AdminBookingFormModal({
         endDate,
         notes: notes.trim() ? notes.trim() : undefined,
         paymentStatus,
-        paymentNote: paymentNote.trim() ? paymentNote.trim() : undefined,
         createdBy: "admin",
         selections: selectedRooms.map((room) => ({
           roomTypeId: room.roomTypeId,
@@ -365,48 +362,33 @@ export default function AdminBookingFormModal({
               <section className="rounded-[20px] border border-[#d8d0c2] bg-white p-5">
                 <SectionTitle eyebrow="Section 3" title="Paiement" />
 
-                <div className="mt-4 grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)] xl:items-start">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-[#1e1e1e]">
-                      Statut
-                    </label>
+                <div className="mt-4 max-w-[260px]">
+                  <label className="mb-2 block text-sm font-medium text-[#1e1e1e]">
+                    Statut
+                  </label>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      {(
-                        [
-                          ["unpaid", "Non payé"],
-                          ["paid", "Payé"],
-                        ] as const
-                      ).map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() =>
-                            setPaymentStatus(value as AdminPaymentStatus)
-                          }
-                          className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-                            paymentStatus === value
-                              ? "border-[#314835] bg-[#314835] text-white"
-                              : "border-[#d8d0c2] bg-white text-[#314835] hover:bg-[#faf6ef]"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-[#1e1e1e]">
-                      Note de paiement
-                    </label>
-
-                    <TextArea
-                      value={paymentNote}
-                      onChange={setPaymentNote}
-                      rows={3}
-                      placeholder="Optionnel"
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        ["unpaid", "Non payé"],
+                        ["paid", "Payé"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() =>
+                          setPaymentStatus(value as AdminPaymentStatus)
+                        }
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                          paymentStatus === value
+                            ? "border-[#314835] bg-[#314835] text-white"
+                            : "border-[#d8d0c2] bg-white text-[#314835] hover:bg-[#faf6ef]"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -580,10 +562,6 @@ export default function AdminBookingFormModal({
                   label="Paiement"
                   value={getPaymentStatusLabel(paymentStatus)}
                 />
-
-                {paymentNote.trim() ? (
-                  <InfoBlock title="Note paiement">{paymentNote}</InfoBlock>
-                ) : null}
 
                 {notes.trim() ? (
                   <InfoBlock title="Notes internes">{notes}</InfoBlock>
