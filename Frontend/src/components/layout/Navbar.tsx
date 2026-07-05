@@ -155,13 +155,14 @@ export default function Navbar({
             className="relative flex h-[58px] w-[58px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full sm:h-[64px] sm:w-[64px] lg:h-[94px] lg:w-[94px]"
             style={{ boxShadow: "0 8px 22px rgba(0,0,0,0.18)" }}
           >
-            <Image
-              src="/images/fauxcalm-logo-resized.webp"
-              alt="Auberge du Fauxcalm"
-              fill
-              className="scale-[1.02] object-contain"
-              priority
-            />
+<Image
+  src="/images/fauxcalm-logo-resized.webp"
+  alt="Auberge du Fauxcalm"
+  fill
+  sizes="(max-width: 640px) 58px, (max-width: 1024px) 64px, 94px"
+  className="scale-[1.02] object-contain"
+  priority
+/>
 
             <span
               aria-hidden="true"
