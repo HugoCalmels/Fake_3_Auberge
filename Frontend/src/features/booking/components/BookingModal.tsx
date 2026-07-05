@@ -1,13 +1,18 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import BookingStepBar from "./BookingStepBar";
 import BookingDateStep from "./BookingDateStep";
-import BookingPaymentStep from "./BookingPaymentStep";
 import BookingRoomsStep from "./BookingRoomStep";
 import BookingSuccessStep from "./BookingSuccessStep";
 import { useBookingFlow } from "@/features/booking/hooks/useBookingFlow";
 import { formatShortDate } from "@/features/booking/booking.utils";
+
+const BookingPaymentStep = dynamic(() => import("./BookingPaymentStep"), {
+  ssr: false,
+  loading: () => null,
+});
 
 export default function BookingModal({
   closeBooking,
@@ -94,12 +99,9 @@ export default function BookingModal({
   };
 
   return (
-<div className="fixed inset-0 z-[100] overflow-y-auto bg-black/40 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/40 backdrop-blur-[2px]">
       <div className="flex justify-center px-3 py-3 sm:min-h-screen sm:items-center sm:p-4">
-        <div
-          className="w-full max-w-[375px] overflow-hidden border border-[#d8d0c2] bg-[#f4f0e8] shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:w-[min(980px,94vw)] sm:max-w-none sm:rounded-[28px]"
-    
-        >
+        <div className="w-full max-w-[375px] overflow-hidden border border-[#d8d0c2] bg-[#f4f0e8] shadow-[0_24px_70px_rgba(0,0,0,0.22)] sm:w-[min(980px,94vw)] sm:max-w-none sm:rounded-[28px]">
           <div className="flex items-start justify-between border-b border-[#e1d9cd] px-4 py-3 sm:px-6 sm:py-5">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9a9184] sm:text-[11px]">
