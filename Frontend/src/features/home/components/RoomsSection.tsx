@@ -18,7 +18,7 @@ type Props = {
 export default function RoomsSection({
   roomTypes: initialRoomTypes = [],
   openBooking,
-  limit = 4,
+  limit,
 }: Props) {
   const [roomTypes, setRoomTypes] = useState<RoomTypeAvailabilityDto[]>(() =>
     normalizeRoomTypesFromProps(initialRoomTypes),
@@ -27,10 +27,13 @@ export default function RoomsSection({
   const [error, setError] = useState("");
   const carouselRef = useRef<HTMLDivElement | null>(null);
 
-  const visibleRoomTypes = useMemo(
-    () => roomTypes.slice(0, limit),
-    [roomTypes, limit],
-  );
+  const visibleRoomTypes = useMemo(() => {
+    if (typeof limit === "number" && limit > 0) {
+      return roomTypes.slice(0, limit);
+    }
+
+    return roomTypes;
+  }, [roomTypes, limit]);
 
   useEffect(() => {
     if (initialRoomTypes.length > 0) {
@@ -133,27 +136,29 @@ export default function RoomsSection({
             </div>
           ) : (
             <>
-              <div className="mb-5 flex justify-start px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => scrollCarousel("prev")}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
-                    aria-label="Voir les chambres précédentes"
-                  >
-                    ←
-                  </button>
+              {visibleRoomTypes.length > 1 ? (
+                <div className="mb-5 flex justify-start px-4 sm:px-6 lg:px-8">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => scrollCarousel("prev")}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
+                      aria-label="Voir les chambres précédentes"
+                    >
+                      ←
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => scrollCarousel("next")}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
-                    aria-label="Voir les chambres suivantes"
-                  >
-                    →
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollCarousel("next")}
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
+                      aria-label="Voir les chambres suivantes"
+                    >
+                      →
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div className="px-4 sm:px-6 lg:px-8">
                 <div
