@@ -635,6 +635,8 @@ export class AdminService {
     const previousEndDate = booking.endDate;
     const previousAdults = booking.adultMeals;
     const previousChildren = booking.childMeals;
+    const previousGuestName = booking.guestName;
+    const previousGuestEmail = booking.guestEmail;
     const previousGuestPhone = booking.guestPhone;
     const previousNotes = booking.notes;
     const previousMealPlanName = booking.mealPlan?.name ?? null;
@@ -649,6 +651,29 @@ export class AdminService {
 
     if (startDate >= endDate) {
       throw new BadRequestException('Dates invalides.');
+    }
+
+    const dtoWithGuest = dto as UpdateAdminBookingDto & {
+      guestName?: string;
+      guestEmail?: string;
+    };
+
+    const guestName =
+      dtoWithGuest.guestName !== undefined
+        ? dtoWithGuest.guestName.trim()
+        : booking.guestName;
+
+    const guestEmail =
+      dtoWithGuest.guestEmail !== undefined
+        ? dtoWithGuest.guestEmail.trim().toLowerCase()
+        : booking.guestEmail;
+
+    if (!guestName) {
+      throw new BadRequestException('Nom du client requis.');
+    }
+
+    if (!guestEmail) {
+      throw new BadRequestException('Email du client requis.');
     }
 
     const adults = dto.adults !== undefined ? dto.adults : booking.adultMeals;
@@ -746,6 +771,8 @@ export class AdminService {
             ? (dto.status as BookingStatus)
             : booking.status,
 
+        guestName,
+        guestEmail,
         guestPhone,
 
         notes:
@@ -805,6 +832,10 @@ export class AdminService {
       nextAdults: updated.adultMeals,
       previousChildren,
       nextChildren: updated.childMeals,
+      previousGuestName,
+      nextGuestName: updated.guestName,
+      previousGuestEmail,
+      nextGuestEmail: updated.guestEmail,
       previousGuestPhone,
       nextGuestPhone: updated.guestPhone,
       previousNotes,
@@ -1126,6 +1157,10 @@ export class AdminService {
     nextAdults: number;
     previousChildren: number;
     nextChildren: number;
+    previousGuestName: string;
+    nextGuestName: string;
+    previousGuestEmail: string;
+    nextGuestEmail: string;
     previousGuestPhone: string | null;
     nextGuestPhone: string | null;
     previousNotes: string | null;
@@ -1176,6 +1211,10 @@ export class AdminService {
     nextAdults: number;
     previousChildren: number;
     nextChildren: number;
+    previousGuestName: string;
+    nextGuestName: string;
+    previousGuestEmail: string;
+    nextGuestEmail: string;
     previousGuestPhone: string | null;
     nextGuestPhone: string | null;
     previousNotes: string | null;
@@ -1237,6 +1276,24 @@ export class AdminService {
         label: 'Voyageurs',
         from: `${input.previousAdults} adulte(s), ${input.previousChildren} enfant(s)`,
         to: `${input.nextAdults} adulte(s), ${input.nextChildren} enfant(s)`,
+      });
+    }
+
+    if (input.previousGuestName !== input.nextGuestName) {
+      changes.push({
+        field: 'guestName',
+        label: 'Client',
+        from: input.previousGuestName,
+        to: input.nextGuestName,
+      });
+    }
+
+    if (input.previousGuestEmail !== input.nextGuestEmail) {
+      changes.push({
+        field: 'guestEmail',
+        label: 'Email',
+        from: input.previousGuestEmail,
+        to: input.nextGuestEmail,
       });
     }
 

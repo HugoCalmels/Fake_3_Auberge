@@ -33,7 +33,7 @@ export default function AubergeSection() {
         <div className="relative w-full max-w-[300px] overflow-hidden rounded-[22px] border border-[#d8d1c6] bg-[#d9d3c8] shadow-[0_12px_34px_rgba(0,0,0,0.06)] lg:justify-self-end">
           <div className="relative aspect-[4/5]">
             <Image
-              src="/images/facade4-auberge.png"
+              src="/images/facade4-auberge.webp"
               alt="Auberge du Montcalm"
               fill
               className="object-cover"

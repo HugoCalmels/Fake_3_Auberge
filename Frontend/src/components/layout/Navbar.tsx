@@ -156,7 +156,7 @@ export default function Navbar({
             style={{ boxShadow: "0 8px 22px rgba(0,0,0,0.18)" }}
           >
             <Image
-              src="/images/fauxcalm-logo-resized.png"
+              src="/images/fauxcalm-logo-resized.webp"
               alt="Auberge du Fauxcalm"
               fill
               className="scale-[1.02] object-contain"

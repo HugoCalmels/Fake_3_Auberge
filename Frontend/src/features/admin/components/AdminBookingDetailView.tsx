@@ -10,9 +10,13 @@ import type {
   AdminBookingStatus,
   AdminPaymentStatus,
   AdminRoomDto,
+  UpdateAdminBookingPayload,
   AdminRoomTypeDto,
 } from "@/features/admin/types";
-import { downloadAdminBookingInvoicePdf } from "../api/adminBookings.api";
+import {
+  downloadAdminBookingInvoicePdf,
+  updateAdminBooking,
+} from "../api/adminBookings.api";
 import AdminDateRangePicker from "./AdminDateRangePicker";
 
 type BookingAvailabilityResponse = Awaited<
@@ -33,6 +37,11 @@ type Props = {
   roomTypes?: AdminRoomTypeDto[];
   onClose: () => void;
   onUpdated: (booking: AdminBookingDetailDto) => Promise<void> | void;
+};
+
+type UpdateAdminBookingPayloadWithGuest = UpdateAdminBookingPayload & {
+  guestName?: string;
+  guestEmail?: string;
 };
 
 const WARNING_COLOR = "bg-[#F6BF26]";
@@ -62,8 +71,8 @@ export default function AdminBookingDetailView({
   const {
     booking,
     loading,
-    busy,
-    error,
+    busy: hookBusy,
+    error: hookError,
     sortedRooms,
     canCancel,
 
@@ -89,13 +98,17 @@ export default function AdminBookingDetailView({
     setStatus,
     setNewRoomId,
 
-    save,
     assignRoom,
     cancel,
   } = useAdminBookingDetails(safeBookingId, rooms);
 
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const busy = hookBusy || saveBusy;
+  const error = saveError || hookError;
 
   const [offers, setOffers] = useState<AdminRoomAvailability[]>([]);
   const [availabilityError, setAvailabilityError] = useState("");
@@ -209,15 +222,42 @@ export default function AdminBookingDetailView({
   }, [selectedOffer, mealPlanCode, setMealPlanCode]);
 
   async function handleSaveClick() {
-    if (busy) return;
+    if (busy || !booking) return;
 
-    if (booking && newRoomId !== booking.roomId) {
-      const roomSuccess = await assignRoom(onUpdated);
-      if (!roomSuccess) return;
+    setSaveBusy(true);
+    setSaveError("");
+
+    try {
+      if (newRoomId !== booking.roomId) {
+        const roomSuccess = await assignRoom(onUpdated);
+        if (!roomSuccess) return;
+      }
+
+      const updatedBooking = await updateAdminBooking(safeBookingId, {
+        guestName: guestName.trim(),
+        guestEmail: guestEmail.trim().toLowerCase(),
+        guestPhone: guestPhone.trim() ? guestPhone.trim() : undefined,
+        startDate,
+        endDate,
+        adults: Number(adults),
+        children: Number(children),
+        notes: notes.trim() ? notes.trim() : undefined,
+        paymentStatus,
+        mealPlanCode,
+        status,
+      } as UpdateAdminBookingPayloadWithGuest);
+
+      await onUpdated(updatedBooking);
+      onClose();
+    } catch (err) {
+      setSaveError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de modifier la réservation.",
+      );
+    } finally {
+      setSaveBusy(false);
     }
-
-    const success = await save(onUpdated);
-    if (success) onClose();
   }
 
   async function handleCancelBooking() {

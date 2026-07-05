@@ -37,7 +37,7 @@ export default function RestaurantSection() {
         <div className="relative w-full max-w-[300px] overflow-hidden rounded-[22px] border border-[#d2cabf] bg-[#d8d2c7] shadow-[0_12px_34px_rgba(0,0,0,0.06)] lg:justify-self-end">
           <div className="relative aspect-[1/1]">
             <Image
-              src="/images/resto-auberge.png"
+              src="/images/resto-auberge.webp"
               alt="Salle de restaurant de l’auberge"
               fill
               className="object-cover"

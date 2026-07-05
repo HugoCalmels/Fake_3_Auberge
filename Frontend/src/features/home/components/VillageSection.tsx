@@ -31,25 +31,25 @@ export default function VillageSection() {
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2">
             <ImageCard
-              src="/images/gr10.png"
+              src="/images/gr10.webp"
               alt="Sentiers du GR10 autour d'Auzat"
               label="Randonnées du GR10"
             />
 
             <ImageCard
-              src="/images/etang.png"
+              src="/images/etang.webp"
               alt="Étang d'Izourt"
               label="Étang d'Izourt"
             />
 
             <ImageCard
-              src="/images/village-auzat.png"
+              src="/images/village-auzat.webp"
               alt="Vue du village d'Auzat"
               label="Village d'Auzat"
             />
 
             <ImageCard
-              src="/images/miglos.png"
+              src="/images/miglos.webp"
               alt="Château de Miglos"
               label="Château de Miglos"
             />
