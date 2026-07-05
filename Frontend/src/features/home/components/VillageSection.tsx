@@ -1,33 +1,35 @@
 import Image from "next/image";
 import { FaCarSide, FaSkiing } from "react-icons/fa";
 
+const IMAGE_SIZES = "(min-width: 1024px) 450px, (min-width: 640px) 50vw, 100vw";
+
 export default function VillageSection() {
   return (
     <section id="village" className="overflow-hidden bg-[#f4efe7] scroll-mt-12">
       <div className="mx-auto grid max-w-[1280px] gap-10 px-4 pt-24 pb-20 sm:px-6 lg:grid-cols-[minmax(0,1fr)_290px] lg:px-8 lg:pt-28 lg:pb-24">
         <div>
-<div className="max-w-[720px]">
-  <h2
-    className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl"
-    style={{ marginBottom: "32px" }}
-  >
-    La vallée du Vicdessos
-  </h2>
+          <div className="max-w-[720px]">
+            <h2
+              className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl"
+              style={{ marginBottom: "32px" }}
+            >
+              La vallée du Vicdessos
+            </h2>
 
-  <div style={{ marginTop: "32px" }}>
-<p className="max-w-[680px] text-[17px] leading-8 text-[#5f5a52]">
-  Longue vallée glaciaire d’environ 33 kilomètres, la vallée du Vicdessos remonte
-  de Tarascon-sur-Ariège vers les hauts massifs frontaliers, avec Auzat comme
-  l’un de ses principaux villages de montagne.
-</p>
+            <div style={{ marginTop: "32px" }}>
+              <p className="max-w-[680px] text-[17px] leading-8 text-[#5f5a52]">
+                Longue vallée glaciaire d’environ 33 kilomètres, la vallée du Vicdessos remonte
+                de Tarascon-sur-Ariège vers les hauts massifs frontaliers, avec Auzat comme
+                l’un de ses principaux villages de montagne.
+              </p>
 
-<p className="mt-5 max-w-[680px] text-[17px] leading-8 text-[#5f5a52]">
-  Le secteur a longtemps été marqué par le fer, les mines de Rancié et
-  l’hydroélectricité, dont témoignent encore les barrages de Soulcem, Izourt et
-  Gnioure.
-</p>
-  </div>
-</div>
+              <p className="mt-5 max-w-[680px] text-[17px] leading-8 text-[#5f5a52]">
+                Le secteur a longtemps été marqué par le fer, les mines de Rancié et
+                l’hydroélectricité, dont témoignent encore les barrages de Soulcem, Izourt et
+                Gnioure.
+              </p>
+            </div>
+          </div>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2">
             <ImageCard
@@ -53,7 +55,6 @@ export default function VillageSection() {
               alt="Château de Miglos"
               label="Château de Miglos"
             />
-
           </div>
         </div>
 
@@ -104,23 +105,23 @@ export default function VillageSection() {
               ]}
             />
 
-<SidebarSection
-  title="Hiver"
-  items={[
-    <>
-      <span className="inline-flex items-center gap-1.5">
-        Goulier neige
-        <FaSkiing
-          size={13}
-          className="translate-y-[1px] text-white"
-        />
-      </span>
+            <SidebarSection
+              title="Hiver"
+              items={[
+                <>
+                  <span className="inline-flex items-center gap-1.5">
+                    Goulier neige
+                    <FaSkiing
+                      size={13}
+                      className="translate-y-[1px] text-white"
+                    />
+                  </span>
 
-      <Distance time="10 min" />
-    </>,
-    "Raquettes & sorties montagne",
-  ]}
-/>
+                  <Distance time="10 min" />
+                </>,
+                "Raquettes & sorties montagne",
+              ]}
+            />
 
             <SidebarSection
               title="Sommets"
@@ -150,16 +151,23 @@ function ImageCard({
   return (
     <div className="relative overflow-hidden rounded-[20px] bg-[#d9d3c8] shadow-[0_10px_30px_rgba(0,0,0,0.05)]">
       <div className="relative aspect-[1.45/1]">
-        <Image src={src} alt={alt} fill className="object-cover" />
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes={IMAGE_SIZES}
+          loading="lazy"
+          className="object-cover"
+        />
 
-<div className="absolute inset-x-0 bottom-0 bg-[#314835]/82 px-4 py-3 backdrop-blur-[2px]">
-  <p
-    className="text-[14px] font-semibold"
-    style={{ color: "#f4efe7" }}
-  >
-    {label}
-  </p>
-</div>
+        <div className="absolute inset-x-0 bottom-0 bg-[#314835]/82 px-4 py-3 backdrop-blur-[2px]">
+          <p
+            className="text-[14px] font-semibold"
+            style={{ color: "#f4efe7" }}
+          >
+            {label}
+          </p>
+        </div>
       </div>
     </div>
   );

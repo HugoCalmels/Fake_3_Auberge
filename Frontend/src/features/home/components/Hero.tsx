@@ -8,13 +8,14 @@ type HeroProps = {
 export default function Hero({ openBooking }: HeroProps) {
   return (
     <section className="relative mb-[165px] h-[88svh] min-h-[680px] overflow-visible bg-black md:mb-[70px]">
-      <Image
-        src="/images/test2323DD.webp"
-        alt="Auberge du Fauxcalm"
-        fill
-        priority
-        className="object-cover"
-      />
+<Image
+  src="/images/test2323DD.webp"
+  alt="Auberge du Fauxcalm"
+  fill
+  priority
+  sizes="100vw"
+  className="object-cover"
+/>
 
       <div className="absolute inset-0 bg-[#4d5845]/40" />
       <div className="absolute inset-0 bg-gradient-to-b from-[#66705d]/8 via-transparent to-[#253023]/22" />

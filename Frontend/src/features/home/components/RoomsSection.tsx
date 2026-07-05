@@ -18,7 +18,7 @@ type Props = {
 export default function RoomsSection({
   roomTypes: initialRoomTypes = [],
   openBooking,
-  limit = 6,
+  limit = 4,
 }: Props) {
   const [roomTypes, setRoomTypes] = useState<RoomTypeAvailabilityDto[]>(() =>
     normalizeRoomTypesFromProps(initialRoomTypes),
@@ -27,9 +27,10 @@ export default function RoomsSection({
   const [error, setError] = useState("");
   const carouselRef = useRef<HTMLDivElement | null>(null);
 
-  const visibleRoomTypes = useMemo(() => {
-    return roomTypes.slice(0, limit);
-  }, [roomTypes, limit]);
+  const visibleRoomTypes = useMemo(
+    () => roomTypes.slice(0, limit),
+    [roomTypes, limit],
+  );
 
   useEffect(() => {
     if (initialRoomTypes.length > 0) {
@@ -39,25 +40,38 @@ export default function RoomsSection({
       return;
     }
 
+    let cancelled = false;
+
     async function loadRoomTypes() {
       setLoading(true);
       setError("");
 
       try {
         const data = await getPublicRoomTypes();
-        setRoomTypes(normalizePublicRoomTypes(data));
+
+        if (!cancelled) {
+          setRoomTypes(normalizePublicRoomTypes(data));
+        }
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Impossible de charger les hébergements.",
-        );
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger les hébergements.",
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     void loadRoomTypes();
+
+    return () => {
+      cancelled = true;
+    };
   }, [initialRoomTypes]);
 
   function scrollCarousel(direction: "prev" | "next") {
@@ -75,7 +89,7 @@ export default function RoomsSection({
   }
 
   return (
-    <section id="hebergement" className="bg-[#f4efe7] scroll-mt-12">
+    <section id="hebergement" className="scroll-mt-12 bg-[#f4efe7]">
       <div className="mx-auto max-w-[1280px] pb-16 pt-20 md:pb-20 md:pt-24 lg:pb-24 lg:pt-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="max-w-[820px]">
@@ -115,9 +129,7 @@ export default function RoomsSection({
             </div>
           ) : visibleRoomTypes.length === 0 ? (
             <div className="px-4 sm:px-6 lg:px-8">
-              <MessageCard>
-                Aucun hébergement disponible pour le moment.
-              </MessageCard>
+              <MessageCard>Aucun hébergement disponible pour le moment.</MessageCard>
             </div>
           ) : (
             <>
@@ -126,7 +138,7 @@ export default function RoomsSection({
                   <button
                     type="button"
                     onClick={() => scrollCarousel("prev")}
-                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
                     aria-label="Voir les chambres précédentes"
                   >
                     ←
@@ -135,7 +147,7 @@ export default function RoomsSection({
                   <button
                     type="button"
                     onClick={() => scrollCarousel("next")}
-                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d1c6] bg-[#f8f4ed] text-[15px] text-[#314835] transition hover:bg-[#ece4d7] md:h-11 md:w-11"
                     aria-label="Voir les chambres suivantes"
                   >
                     →
@@ -148,11 +160,12 @@ export default function RoomsSection({
                   ref={carouselRef}
                   className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] md:gap-5 [&::-webkit-scrollbar]:hidden"
                 >
-                  {visibleRoomTypes.map((room) => (
+                  {visibleRoomTypes.map((room, index) => (
                     <RoomPreviewCard
                       key={room.id}
                       room={room}
                       openBooking={openBooking}
+                      eager={index === 0}
                     />
                   ))}
                 </div>
@@ -184,13 +197,13 @@ function normalizeRoomTypesFromProps(
 function RoomPreviewCard({
   room,
   openBooking,
+  eager = false,
 }: {
   room: RoomTypeAvailabilityDto;
   openBooking: () => void;
+  eager?: boolean;
 }) {
-  const imageSrc = room.imageUrl
-    ? getAdminRoomTypeImageSrc(room.imageUrl)
-    : null;
+  const imageSrc = room.imageUrl ? getAdminRoomTypeImageSrc(room.imageUrl) : null;
 
   return (
     <article className="group flex w-[72vw] max-w-[290px] shrink-0 snap-start flex-col overflow-hidden rounded-[22px] border border-[#d8d1c6] bg-[#f8f4ed] transition duration-500 hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(0,0,0,0.06)] sm:w-[340px] sm:max-w-none sm:rounded-[24px] lg:w-[370px]">
@@ -199,6 +212,8 @@ function RoomPreviewCard({
           <img
             src={imageSrc}
             alt={room.name}
+            loading={eager ? "eager" : "lazy"}
+            decoding="async"
             className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
           />
         ) : (
@@ -237,7 +252,7 @@ function RoomPreviewCard({
           <button
             type="button"
             onClick={openBooking}
-            className="cursor-pointer rounded-full bg-[#314835] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#466349] sm:px-5"
+            className="rounded-full bg-[#314835] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#466349] sm:px-5"
           >
             Réserver
           </button>
