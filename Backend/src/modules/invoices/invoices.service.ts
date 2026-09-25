@@ -117,33 +117,32 @@ export class InvoicesService {
     }
   }
 
-  
-async getPdfForBooking(bookingId: string) {
-  const booking = await this.prisma.booking.findUnique({
-    where: { id: bookingId },
-    select: {
-      bookingGroupId: true,
-    },
-  });
+  async getPdfForBooking(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        bookingGroupId: true,
+      },
+    });
 
-  if (!booking?.bookingGroupId) {
-    throw new BadRequestException('Aucune facture liée à cette réservation.');
+    if (!booking?.bookingGroupId) {
+      throw new BadRequestException('Aucune facture liée à cette réservation.');
+    }
+
+    const invoice = await this.prisma.invoice.findUnique({
+      where: {
+        bookingGroupId: booking.bookingGroupId,
+      },
+      select: {
+        id: true,
+        number: true,
+      },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Facture introuvable.');
+    }
+
+    return invoice;
   }
-
-  const invoice = await this.prisma.invoice.findUnique({
-    where: {
-      bookingGroupId: booking.bookingGroupId,
-    },
-    select: {
-      id: true,
-      number: true,
-    },
-  });
-
-  if (!invoice) {
-    throw new BadRequestException('Facture introuvable.');
-  }
-
-  return invoice;
-}
 }

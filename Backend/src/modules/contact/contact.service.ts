@@ -1,5 +1,5 @@
-import { Injectable, InternalServerErrorException } from "@nestjs/common";
-import { CreateContactMessageDto } from "./dto/create-contact-message.dto";
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 
 @Injectable()
 export class ContactService {
@@ -7,12 +7,10 @@ export class ContactService {
     const apiKey = process.env.BREVO_API_KEY;
     const toEmail = process.env.CONTACT_TO_EMAIL;
     const fromEmail = process.env.CONTACT_FROM_EMAIL;
-    const fromName = process.env.CONTACT_FROM_NAME || "Auberge du Montcalm";
+    const fromName = process.env.CONTACT_FROM_NAME || 'Auberge du Montcalm';
 
     if (!apiKey || !toEmail || !fromEmail) {
-      throw new InternalServerErrorException(
-        "Configuration email manquante.",
-      );
+      throw new InternalServerErrorException('Configuration email manquante.');
     }
 
     const subject = `Nouvelle demande depuis le site - ${dto.name}`;
@@ -27,16 +25,16 @@ export class ContactService {
         <hr />
 
         <p><strong>Message :</strong></p>
-        <p>${escapeHtml(dto.message).replace(/\n/g, "<br />")}</p>
+        <p>${escapeHtml(dto.message).replace(/\n/g, '<br />')}</p>
       </div>
     `;
 
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
       headers: {
-        accept: "application/json",
-        "api-key": apiKey,
-        "content-type": "application/json",
+        accept: 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json',
       },
       body: JSON.stringify({
         sender: {
@@ -46,7 +44,7 @@ export class ContactService {
         to: [
           {
             email: toEmail,
-            name: "Auberge du Montcalm",
+            name: 'Auberge du Montcalm',
           },
         ],
         replyTo: {
@@ -60,7 +58,7 @@ export class ContactService {
 
     if (!response.ok) {
       throw new InternalServerErrorException(
-        "Impossible d’envoyer le message.",
+        'Impossible d’envoyer le message.',
       );
     }
   }
@@ -68,9 +66,9 @@ export class ContactService {
 
 function escapeHtml(value: string) {
   return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }

@@ -13,6 +13,7 @@ export async function getAdminBookings(): Promise<AdminBookingDto[]> {
   const response = await fetch(getApiUrl("admin/bookings"), {
     method: "GET",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -32,6 +33,7 @@ export async function getAdminBookingById(
   const response = await fetch(getApiUrl(`admin/bookings/${bookingId}`), {
     method: "GET",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -51,6 +53,7 @@ export async function createAdminBooking(
   const response = await fetch(getApiUrl("admin/bookings"), {
     method: "POST",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     body: JSON.stringify({
       ...payload,
       guestPhone: payload.guestPhone?.trim()
@@ -80,6 +83,7 @@ export async function updateAdminBooking(
   const response = await fetch(getApiUrl(`admin/bookings/${bookingId}`), {
     method: "PATCH",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     body: JSON.stringify({
       ...payload,
       guestPhone: payload.guestPhone?.trim()
@@ -110,6 +114,7 @@ export async function cancelAdminBooking(
     {
       method: "PATCH",
       headers: getAdminAuthHeaders(),
+      credentials: "include",
     },
   );
 
@@ -132,6 +137,7 @@ export async function assignAdminBookingRoom(
     {
       method: "PATCH",
       headers: getAdminAuthHeaders(),
+      credentials: "include",
       body: JSON.stringify(payload),
     },
   );
@@ -154,6 +160,7 @@ export async function downloadAdminBookingInvoicePdf(
     {
       method: "GET",
       headers: getAdminAuthHeaders(),
+      credentials: "include",
       cache: "no-store",
     },
   );

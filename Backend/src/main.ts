@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { getFrontendOrigin } from './modules/auth/auth.config';
@@ -10,12 +11,15 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  app.use(cookieParser());
+
+  const corsOrigins =
+    process.env.NODE_ENV === 'production'
+      ? [getFrontendOrigin()]
+      : [getFrontendOrigin(), 'http://localhost:3000', 'http://127.0.0.1:3000'];
+
   app.enableCors({
-    origin: [
-      getFrontendOrigin(),
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ],
+    origin: corsOrigins,
     credentials: true,
   });
 

@@ -62,13 +62,10 @@ export class InvoicePdfService {
         .text('SIRET : 123 456 789 00012', 50, 122)
         .text('TVA intracommunautaire : FR12 123456789', 50, 136);
 
-      doc
-        .fontSize(24)
-        .font('Helvetica-Bold')
-        .text('FACTURE', 390, 50, {
-          width: 155,
-          align: 'right',
-        });
+      doc.fontSize(24).font('Helvetica-Bold').text('FACTURE', 390, 50, {
+        width: 155,
+        align: 'right',
+      });
 
       doc
         .fontSize(10)
@@ -83,11 +80,7 @@ export class InvoicePdfService {
         });
 
       // Separator
-      doc
-        .moveTo(50, 165)
-        .lineTo(545, 165)
-        .strokeColor('#cccccc')
-        .stroke();
+      doc.moveTo(50, 165).lineTo(545, 165).strokeColor('#cccccc').stroke();
 
       // Client block
       doc
@@ -123,10 +116,7 @@ export class InvoicePdfService {
       }
 
       // Table title
-      doc
-        .fontSize(14)
-        .font('Helvetica-Bold')
-        .text('Détail du séjour', 50, 300);
+      doc.fontSize(14).font('Helvetica-Bold').text('Détail du séjour', 50, 300);
 
       const tableTop = 330;
       const rowHeight = 28;
@@ -139,9 +129,7 @@ export class InvoicePdfService {
       };
 
       // Table header
-      doc
-        .rect(50, tableTop, contentWidth, rowHeight)
-        .fill('#f2f2f2');
+      doc.rect(50, tableTop, contentWidth, rowHeight).fill('#f2f2f2');
 
       doc
         .fillColor('#111111')
@@ -174,10 +162,7 @@ export class InvoicePdfService {
           y = 60;
         }
 
-        doc
-          .rect(50, y, contentWidth, 54)
-          .strokeColor('#e5e5e5')
-          .stroke();
+        doc.rect(50, y, contentWidth, 54).strokeColor('#e5e5e5').stroke();
 
         doc
           .fillColor('#111111')
@@ -203,10 +188,15 @@ export class InvoicePdfService {
             width: 40,
             align: 'right',
           })
-          .text(formatCurrency(Math.round(booking.totalPrice / nights)), cols.unit, y + 18, {
-            width: 80,
-            align: 'right',
-          })
+          .text(
+            formatCurrency(Math.round(booking.totalPrice / nights)),
+            cols.unit,
+            y + 18,
+            {
+              width: 80,
+              align: 'right',
+            },
+          )
           .font('Helvetica-Bold')
           .text(formatCurrency(booking.totalPrice), cols.total, y + 18, {
             width: 90,
@@ -242,9 +232,7 @@ export class InvoicePdfService {
 
       y += 25;
 
-      doc
-        .rect(350, y, 195, 34)
-        .fill('#111111');
+      doc.rect(350, y, 195, 34).fill('#111111');
 
       doc
         .fillColor('#ffffff')

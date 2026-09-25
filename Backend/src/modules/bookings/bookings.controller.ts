@@ -17,7 +17,7 @@ export class BookingsController {
     return this.bookingsService.createBooking(dto);
   }
   @Get('room-types')
-async getRoomTypes() {
-  return this.bookingsService.getPublicRoomTypes();
-}
+  async getRoomTypes() {
+    return this.bookingsService.getPublicRoomTypes();
+  }
 }

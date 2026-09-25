@@ -166,13 +166,14 @@ export async function createBookingPaymentIntent(
 
 export async function confirmBookingPaymentIntent(
   paymentIntentId: string,
+  clientSecret: string,
 ): Promise<ConfirmBookingPaymentResponse> {
   const response = await fetch(getApiUrl("payments/booking-payment-intent/confirm"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ paymentIntentId }),
+    body: JSON.stringify({ paymentIntentId, clientSecret }),
   });
 
   if (!response.ok) {
@@ -187,13 +188,14 @@ export async function confirmBookingPaymentIntent(
 
 export async function cancelBookingPaymentIntent(
   paymentIntentId: string,
+  clientSecret: string,
 ): Promise<CancelBookingPaymentResponse> {
   const response = await fetch(getApiUrl("payments/booking-payment-intent/cancel"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ paymentIntentId }),
+    body: JSON.stringify({ paymentIntentId, clientSecret }),
   });
 
   if (!response.ok) {

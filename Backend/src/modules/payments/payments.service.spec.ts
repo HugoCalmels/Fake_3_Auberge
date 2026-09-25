@@ -1,9 +1,16 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { BookingStatus, PaymentStatus, SystemLogLevel } from '../../generated/prisma/client';
+import {
+  BookingStatus,
+  PaymentStatus,
+  SystemLogType,
+} from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { SystemLogsService } from '../system-logs/system-logs.service';
+import { MailerService } from '../mailer/mailer.service';
+import { InvoicesService } from '../invoices/invoices.service';
+import { InvoicePdfService } from '../invoices/invoice-pdf.service';
 import { PaymentsService } from './payments.service';
 
 const mockStripeRetrieve = jest.fn();
@@ -27,16 +34,30 @@ describe('PaymentsService', () => {
       updateMany: jest.fn(),
       findMany: jest.fn(),
     },
+    systemLog: {
+      findFirst: jest.fn(),
+    },
   };
 
   const bookingsService = {};
   const systemLogsService = {
     create: jest.fn(),
   };
+  const mailerService = {
+    sendBookingConfirmation: jest.fn(),
+    sendBookingNotificationToAdmin: jest.fn(),
+  };
+  const invoicesService = {
+    createForBookingGroup: jest.fn(),
+  };
+  const invoicePdfService = {
+    generateForInvoice: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     process.env.STRIPE_SECRET_KEY = 'sk_test_fake';
+    prisma.booking.findMany.mockResolvedValue([]);
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -53,6 +74,18 @@ describe('PaymentsService', () => {
           provide: SystemLogsService,
           useValue: systemLogsService,
         },
+        {
+          provide: MailerService,
+          useValue: mailerService,
+        },
+        {
+          provide: InvoicesService,
+          useValue: invoicesService,
+        },
+        {
+          provide: InvoicePdfService,
+          useValue: invoicePdfService,
+        },
       ],
     }).compile();
 
@@ -63,6 +96,7 @@ describe('PaymentsService', () => {
     it('confirme une réservation pending/unpaid quand Stripe est succeeded', async () => {
       mockStripeRetrieve.mockResolvedValue({
         id: 'pi_success',
+        client_secret: 'pi_success_secret',
         status: 'succeeded',
         amount: 7500,
         currency: 'eur',
@@ -71,10 +105,15 @@ describe('PaymentsService', () => {
         },
       });
 
-      prisma.booking.count.mockResolvedValue(0);
+      prisma.booking.count
+        .mockResolvedValueOnce(0) // alreadyPaidCount
+        .mockResolvedValueOnce(1); // pendingCount
       prisma.booking.updateMany.mockResolvedValue({ count: 1 });
 
-      const result = await service.confirmBookingPaymentIntent('pi_success');
+      const result = await service.confirmBookingPaymentIntent(
+        'pi_success',
+        'pi_success_secret',
+      );
 
       expect(mockStripeRetrieve).toHaveBeenCalledWith('pi_success');
 
@@ -95,14 +134,14 @@ describe('PaymentsService', () => {
 
       expect(systemLogsService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          level: SystemLogLevel.info,
-          type: 'payment_confirmed',
+          type: SystemLogType.website_booking_validated,
         }),
       );
 
       expect(result).toEqual({
         success: true,
         paymentIntentId: 'pi_success',
+        bookingGroupId: null,
         bookingIds: ['booking_1'],
       });
     });
@@ -110,6 +149,7 @@ describe('PaymentsService', () => {
     it('throw si Stripe ne confirme pas le paiement', async () => {
       mockStripeRetrieve.mockResolvedValue({
         id: 'pi_failed',
+        client_secret: 'pi_failed_secret',
         status: 'requires_payment_method',
         metadata: {
           bookingIds: 'booking_1',
@@ -117,15 +157,14 @@ describe('PaymentsService', () => {
       });
 
       await expect(
-        service.confirmBookingPaymentIntent('pi_failed'),
+        service.confirmBookingPaymentIntent('pi_failed', 'pi_failed_secret'),
       ).rejects.toThrow(BadRequestException);
 
       expect(prisma.booking.updateMany).not.toHaveBeenCalled();
 
       expect(systemLogsService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          level: SystemLogLevel.warn,
-          type: 'payment_confirm_failed',
+          type: SystemLogType.website_booking_failed,
         }),
       );
     });
@@ -133,6 +172,7 @@ describe('PaymentsService', () => {
     it('ne reconfirme pas si toutes les réservations sont déjà paid', async () => {
       mockStripeRetrieve.mockResolvedValue({
         id: 'pi_already_paid',
+        client_secret: 'pi_already_paid_secret',
         status: 'succeeded',
         metadata: {
           bookingIds: 'booking_1,booking_2',
@@ -143,20 +183,21 @@ describe('PaymentsService', () => {
 
       const result = await service.confirmBookingPaymentIntent(
         'pi_already_paid',
+        'pi_already_paid_secret',
       );
 
       expect(prisma.booking.updateMany).not.toHaveBeenCalled();
 
       expect(systemLogsService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          level: SystemLogLevel.info,
-          type: 'payment_already_confirmed',
+          type: SystemLogType.website_booking_validated,
         }),
       );
 
       expect(result).toEqual({
         success: true,
         paymentIntentId: 'pi_already_paid',
+        bookingGroupId: null,
         bookingIds: ['booking_1', 'booking_2'],
       });
     });
@@ -166,6 +207,7 @@ describe('PaymentsService', () => {
     it('annule une réservation pending/unpaid sans la supprimer', async () => {
       mockStripeRetrieve.mockResolvedValue({
         id: 'pi_cancel',
+        client_secret: 'pi_cancel_secret',
         status: 'requires_payment_method',
         metadata: {
           bookingIds: 'booking_1',
@@ -173,9 +215,13 @@ describe('PaymentsService', () => {
       });
 
       mockStripeCancel.mockResolvedValue({});
+      prisma.booking.count.mockResolvedValue(1); // cancellableCount
       prisma.booking.updateMany.mockResolvedValue({ count: 1 });
 
-      const result = await service.cancelBookingPaymentIntent('pi_cancel');
+      const result = await service.cancelBookingPaymentIntent(
+        'pi_cancel',
+        'pi_cancel_secret',
+      );
 
       expect(mockStripeCancel).toHaveBeenCalledWith('pi_cancel');
 
@@ -195,9 +241,10 @@ describe('PaymentsService', () => {
 
       expect(systemLogsService.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          level: SystemLogLevel.warn,
-          type: 'payment_cancelled',
-          bookingId: 'booking_1',
+          type: SystemLogType.website_booking_failed,
+          metadata: expect.objectContaining({
+            bookingIds: ['booking_1'],
+          }),
         }),
       );
 
@@ -211,6 +258,7 @@ describe('PaymentsService', () => {
     it('refuse d’annuler si Stripe est déjà succeeded', async () => {
       mockStripeRetrieve.mockResolvedValue({
         id: 'pi_success',
+        client_secret: 'pi_success_secret',
         status: 'succeeded',
         metadata: {
           bookingIds: 'booking_1',
@@ -218,17 +266,12 @@ describe('PaymentsService', () => {
       });
 
       await expect(
-        service.cancelBookingPaymentIntent('pi_success'),
+        service.cancelBookingPaymentIntent('pi_success', 'pi_success_secret'),
       ).rejects.toThrow(BadRequestException);
 
       expect(prisma.booking.updateMany).not.toHaveBeenCalled();
-
-      expect(systemLogsService.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: SystemLogLevel.warn,
-          type: 'payment_cancel_rejected',
-        }),
-      );
+      expect(mockStripeCancel).not.toHaveBeenCalled();
+      expect(systemLogsService.create).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import Stripe from 'stripe';
 import {
   BookingStatus,
@@ -17,6 +22,10 @@ import { InvoicePdfService } from '../invoices/invoice-pdf.service';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  // Le SDK stripe@22 ne réexpose plus les types de ressources (PaymentIntent,
+  // Event, Checkout.Session, Metadata...) depuis son point d'entrée public
+  // avec ce moduleResolution ("nodenext") ; `any` reste nécessaire ici sans
+  // import profond non supporté par le package ou un downgrade du SDK.
   private readonly stripe: any;
 
   constructor(
@@ -48,7 +57,9 @@ export class PaymentsService {
         guestEmail: dto.guestEmail,
       });
 
-      throw new BadRequestException('Le montant de la réservation est invalide.');
+      throw new BadRequestException(
+        'Le montant de la réservation est invalide.',
+      );
     }
 
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
@@ -150,7 +161,9 @@ export class PaymentsService {
         guestEmail: dto.guestEmail,
       });
 
-      throw new BadRequestException('Le montant de la réservation est invalide.');
+      throw new BadRequestException(
+        'Le montant de la réservation est invalide.',
+      );
     }
 
     let paymentIntent: any;
@@ -270,9 +283,16 @@ export class PaymentsService {
     return { received: true };
   }
 
-  async confirmBookingPaymentIntent(paymentIntentId: string) {
+  async confirmBookingPaymentIntent(
+    paymentIntentId: string,
+    clientSecret: string,
+  ) {
     const paymentIntent =
       await this.stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.client_secret !== clientSecret) {
+      throw new ForbiddenException('Client secret invalide pour ce paiement.');
+    }
 
     this.logger.log(
       `Confirm PaymentIntent ${paymentIntent.id} - status=${paymentIntent.status}`,
@@ -322,7 +342,9 @@ export class PaymentsService {
     });
 
     if (alreadyPaidCount === bookingIds.length) {
-      this.logger.log(`PaymentIntent ${paymentIntent.id} déjà confirmé côté DB.`);
+      this.logger.log(
+        `PaymentIntent ${paymentIntent.id} déjà confirmé côté DB.`,
+      );
 
       if (bookingGroupId) {
         await this.invoicesService.createForBookingGroup({
@@ -345,6 +367,21 @@ export class PaymentsService {
         bookingGroupId,
         bookingIds,
       };
+    }
+
+    const pendingCount = await this.prisma.booking.count({
+      where: {
+        id: {
+          in: bookingIds,
+        },
+        status: BookingStatus.pending,
+      },
+    });
+
+    if (pendingCount !== bookingIds.length) {
+      throw new BadRequestException(
+        'Réservation introuvable ou déjà dans un état incompatible avec cette confirmation.',
+      );
     }
 
     const result = await this.prisma.booking.updateMany({
@@ -389,9 +426,16 @@ export class PaymentsService {
     };
   }
 
-  async cancelBookingPaymentIntent(paymentIntentId: string) {
+  async cancelBookingPaymentIntent(
+    paymentIntentId: string,
+    clientSecret: string,
+  ) {
     const paymentIntent =
       await this.stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.client_secret !== clientSecret) {
+      throw new ForbiddenException('Client secret invalide pour ce paiement.');
+    }
 
     this.logger.warn(
       `Cancel PaymentIntent ${paymentIntent.id} - status=${paymentIntent.status}`,
@@ -423,7 +467,38 @@ export class PaymentsService {
       );
     }
 
-    await this.stripe.paymentIntents.cancel(paymentIntentId).catch(() => null);
+    const cancellableCount = await this.prisma.booking.count({
+      where: {
+        id: {
+          in: bookingIds,
+        },
+        status: BookingStatus.pending,
+        paymentStatus: PaymentStatus.unpaid,
+      },
+    });
+
+    if (cancellableCount !== bookingIds.length) {
+      throw new BadRequestException(
+        'Réservation introuvable ou déjà dans un état incompatible avec cette annulation.',
+      );
+    }
+
+    if (paymentIntent.status !== 'canceled') {
+      try {
+        await this.stripe.paymentIntents.cancel(paymentIntentId);
+      } catch (error) {
+        const isAlreadyCanceled =
+          error?.code === 'payment_intent_unexpected_state' &&
+          error?.payment_intent?.status === 'canceled';
+
+        if (!isAlreadyCanceled) {
+          this.logger.error(
+            `Échec de l'annulation Stripe pour ${paymentIntentId} : ${error?.message ?? error}`,
+          );
+          throw error;
+        }
+      }
+    }
 
     const result = await this.prisma.booking.updateMany({
       where: {
@@ -775,12 +850,7 @@ export class PaymentsService {
   }
 
   private getBookingIdsFromSession(session: any) {
-    return (
-      session.metadata?.bookingIds
-        ?.split(',')
-        .map((id: string) => id.trim())
-        .filter(Boolean) ?? []
-    );
+    return this.getBookingIdsFromMetadata(session.metadata);
   }
 
   private getBookingIdsFromMetadata(metadata: any) {

@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { getMe, loginAdmin } from "@/features/admin/api/auth.api";
-import {
-  getStoredAdminToken,
-  removeStoredAdminToken,
-  setStoredAdminToken,
-} from "@/features/admin/lib/admin-auth";
+import { getMe, loginAdmin, logoutAdmin } from "@/features/admin/api/auth.api";
 
 type Admin = {
   id: string;
@@ -22,18 +17,10 @@ export function useAdminSession() {
 
   useEffect(() => {
     async function init() {
-      const token = getStoredAdminToken();
-
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const me = await getMe(token);
+        const me = await getMe();
         setAdmin(me);
       } catch {
-        removeStoredAdminToken();
         setAdmin(null);
       } finally {
         setLoading(false);
@@ -48,7 +35,6 @@ export function useAdminSession() {
 
     try {
       const data = await loginAdmin({ email, password });
-      setStoredAdminToken(data.accessToken);
       setAdmin(data.admin);
       return true;
     } catch (err) {
@@ -58,7 +44,7 @@ export function useAdminSession() {
   }
 
   function signOut() {
-    removeStoredAdminToken();
+    void logoutAdmin();
     setAdmin(null);
     setError("");
   }

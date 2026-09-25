@@ -121,6 +121,8 @@ export type UpdateAdminBookingPayload = {
   endDate: string;
   adults: number;
   children: number;
+  guestName?: string;
+  guestEmail?: string;
   guestPhone?: string;
   notes?: string;
   status?: AdminBookingStatus;

@@ -11,6 +11,7 @@ export async function getAdminPlanning(
   const response = await fetch(getApiUrl(`admin/planning?${params}`), {
     method: "GET",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     cache: "no-store",
   });
 

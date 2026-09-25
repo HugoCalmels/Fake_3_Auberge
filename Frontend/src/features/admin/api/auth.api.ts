@@ -6,7 +6,6 @@ export type LoginPayload = {
 };
 
 export type LoginResponse = {
-  accessToken: string;
   admin: {
     id: string;
     email: string;
@@ -19,6 +18,7 @@ export async function loginAdmin(
 ): Promise<LoginResponse> {
   const response = await fetch(getApiUrl("auth/login"), {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -35,12 +35,10 @@ export async function loginAdmin(
   return response.json();
 }
 
-export async function getMe(token: string) {
+export async function getMe() {
   const response = await fetch(getApiUrl("auth/me"), {
     cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -48,4 +46,11 @@ export async function getMe(token: string) {
   }
 
   return response.json();
+}
+
+export async function logoutAdmin() {
+  await fetch(getApiUrl("auth/logout"), {
+    method: "POST",
+    credentials: "include",
+  });
 }

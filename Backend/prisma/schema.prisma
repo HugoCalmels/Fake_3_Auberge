@@ -167,6 +167,16 @@ model AdminUser {
   updatedAt    DateTime @updatedAt
 }
 
+// Persists login brute-force counters (keyed by "ip:email") so the lockout
+// survives process restarts/deploys and is shared across horizontally scaled
+// instances, instead of living in an in-memory Map local to one process.
+model LoginAttempt {
+  key            String    @id
+  count          Int       @default(1)
+  lockedUntil    DateTime?
+  firstAttemptAt DateTime  @default(now())
+}
+
 model SystemLog {
   id String @id @default(cuid())
 

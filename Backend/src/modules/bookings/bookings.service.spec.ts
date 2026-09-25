@@ -54,14 +54,12 @@ describe('BookingsService', () => {
         }),
       },
 
-      room: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'room_101',
-            number: '101',
-          },
-        ]),
-      },
+      $queryRaw: jest.fn().mockResolvedValue([
+        {
+          id: 'room_101',
+          number: '101',
+        },
+      ]),
 
       booking: {
         findFirst: jest.fn().mockResolvedValue(null),

@@ -1,4 +1,8 @@
-import { BookingStatus } from 'src/generated/prisma/client';
+import {
+  BookingSource,
+  BookingStatus,
+  PaymentStatus,
+} from 'src/generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 type AdminBookingWithRelations = {
@@ -12,8 +16,12 @@ type AdminBookingWithRelations = {
   childMeals: number;
   guestName: string;
   guestEmail: string;
+  guestPhone: string | null;
   status: BookingStatus;
   notes: string | null;
+  bookingSource: BookingSource;
+  paymentStatus: PaymentStatus;
+  paymentNote: string | null;
   roomPrice: number;
   mealPlanPrice: number;
   totalPrice: number;
@@ -32,7 +40,7 @@ type AdminBookingWithRelations = {
   } | null;
 };
 
-export function mapAdminBooking(booking: any) {
+export function mapAdminBooking(booking: AdminBookingWithRelations) {
   return {
     id: booking.id,
     roomId: booking.roomId,

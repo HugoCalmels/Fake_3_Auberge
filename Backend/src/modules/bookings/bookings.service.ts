@@ -7,6 +7,7 @@ import {
   RoomStatus,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { allocateRoomsForSelections } from './booking-room-allocation.util';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { GetBookingAvailabilityDto } from './dto/get-booking-availability.dto';
 
@@ -15,75 +16,75 @@ export class BookingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAvailability(dto: GetBookingAvailabilityDto) {
-  const { startDate, endDate } = dto;
+    const { startDate, endDate } = dto;
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    throw new BadRequestException('Dates invalides.');
-  }
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Dates invalides.');
+    }
 
-  if (end <= start) {
-    throw new BadRequestException(
-      "La date de départ doit être après la date d'arrivée.",
-    );
-  }
+    if (end <= start) {
+      throw new BadRequestException(
+        "La date de départ doit être après la date d'arrivée.",
+      );
+    }
 
-  const roomTypes = await this.prisma.roomType.findMany({
-    include: {
-      rooms: {
-        where: {
-          status: RoomStatus.available,
-          bookings: {
-            none: {
-              status: {
-                in: [
-                  BookingStatus.pending,
-                  BookingStatus.confirmed,
-                  BookingStatus.checked_in,
-                ],
+    const roomTypes = await this.prisma.roomType.findMany({
+      include: {
+        rooms: {
+          where: {
+            status: RoomStatus.available,
+            bookings: {
+              none: {
+                status: {
+                  in: [
+                    BookingStatus.pending,
+                    BookingStatus.confirmed,
+                    BookingStatus.checked_in,
+                  ],
+                },
+                startDate: { lt: end },
+                endDate: { gt: start },
               },
-              startDate: { lt: end },
-              endDate: { gt: start },
             },
           },
         },
-      },
-      mealPlans: {
-        include: {
-          mealPlan: true,
+        mealPlans: {
+          include: {
+            mealPlan: true,
+          },
         },
       },
-    },
-    orderBy: {
-      name: 'asc',
-    },
-  });
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-  return {
-    success: true,
-    startDate,
-    endDate,
-    roomTypes: roomTypes.map((roomType) => ({
-      id: roomType.id,
-      code: roomType.code,
-      name: roomType.name,
-      description: roomType.description,
-      maxCapacity: roomType.maxCapacity,
-      basePrice: roomType.basePrice,
-      imageUrl: roomType.imageUrl,
-      availableRooms: roomType.rooms.length,
-      mealPlans: roomType.mealPlans.map((link) => ({
-        id: link.mealPlan.id,
-        code: link.mealPlan.code,
-        name: link.mealPlan.name,
-        adultPrice: link.mealPlan.adultPrice,
-        childPrice: link.mealPlan.childPrice,
+    return {
+      success: true,
+      startDate,
+      endDate,
+      roomTypes: roomTypes.map((roomType) => ({
+        id: roomType.id,
+        code: roomType.code,
+        name: roomType.name,
+        description: roomType.description,
+        maxCapacity: roomType.maxCapacity,
+        basePrice: roomType.basePrice,
+        imageUrl: roomType.imageUrl,
+        availableRooms: roomType.rooms.length,
+        mealPlans: roomType.mealPlans.map((link) => ({
+          id: link.mealPlan.id,
+          code: link.mealPlan.code,
+          name: link.mealPlan.name,
+          adultPrice: link.mealPlan.adultPrice,
+          childPrice: link.mealPlan.childPrice,
+        })),
       })),
-    })),
-  };
-}
+    };
+  }
 
   async createBooking(dto: CreateBookingDto) {
     const result = await this.createPendingWebsiteBooking(dto);
@@ -99,8 +100,14 @@ export class BookingsService {
   }
 
   async createPendingWebsiteBooking(dto: CreateBookingDto) {
-    const { startDate, endDate, guestName, guestEmail, guestPhone, selections } =
-      dto;
+    const {
+      startDate,
+      endDate,
+      guestName,
+      guestEmail,
+      guestPhone,
+      selections,
+    } = dto;
 
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -127,131 +134,12 @@ export class BookingsService {
       const normalizedGuestEmail = guestEmail.trim().toLowerCase();
       const normalizedGuestPhone = guestPhone?.trim() || null;
 
-      const groupedSelections = new Map<string, typeof selections>();
-
-      for (const selection of selections) {
-        const key = selection.roomTypeId;
-
-        if (!groupedSelections.has(key)) {
-          groupedSelections.set(key, []);
-        }
-
-        groupedSelections.get(key)!.push(selection);
-      }
-
-      const allocatedRoomsByType = new Map<
-        string,
-        {
-          roomType: {
-            id: string;
-            code: string;
-            name: string;
-            maxCapacity: number;
-            basePrice: number;
-          };
-          rooms: { id: string; number: string }[];
-        }
-      >();
-
-      for (const [roomTypeId, grouped] of groupedSelections.entries()) {
-        const roomType = await tx.roomType.findUnique({
-          where: {
-            id: roomTypeId,
-          },
-        });
-
-        if (!roomType) {
-          throw new BadRequestException(
-            `Type de chambre introuvable: ${roomTypeId}`,
-          );
-        }
-
-        for (const selection of grouped) {
-          const persons = selection.adults + selection.children;
-
-          if (persons < 1) {
-            throw new BadRequestException(
-              'Chaque chambre doit contenir au moins une personne.',
-            );
-          }
-
-          if (persons > roomType.maxCapacity) {
-            throw new BadRequestException(
-              `Capacité maximale dépassée pour ${roomType.name}.`,
-            );
-          }
-
-          const mealPlan = await tx.mealPlan.findFirst({
-            where: {
-              code: selection.mealPlanCode as MealPlanCode,
-            },
-          });
-
-          if (!mealPlan) {
-            throw new BadRequestException('Formule introuvable.');
-          }
-
-          const allowedMealPlan = await tx.roomTypeMealPlan.findUnique({
-            where: {
-              roomTypeId_mealPlanId: {
-                roomTypeId: roomType.id,
-                mealPlanId: mealPlan.id,
-              },
-            },
-          });
-
-          if (!allowedMealPlan) {
-            throw new BadRequestException(
-              `La formule ${mealPlan.name} n'est pas disponible pour ${roomType.name}.`,
-            );
-          }
-        }
-
-        const availableRooms = await tx.room.findMany({
-          where: {
-            roomTypeId: roomType.id,
-            status: RoomStatus.available,
-            bookings: {
-              none: {
-                status: {
-                  in: [
-                    BookingStatus.pending,
-                    BookingStatus.confirmed,
-                    BookingStatus.checked_in,
-                  ],
-                },
-                startDate: { lt: end },
-                endDate: { gt: start },
-              },
-            },
-          },
-          orderBy: {
-            number: 'asc',
-          },
-          take: grouped.length,
-          select: {
-            id: true,
-            number: true,
-          },
-        });
-
-        if (availableRooms.length < grouped.length) {
-          throw new BadRequestException(
-            `Pas assez de chambres disponibles pour ${roomType.name}.`,
-          );
-        }
-
-        allocatedRoomsByType.set(roomTypeId, {
-          roomType: {
-            id: roomType.id,
-            code: roomType.code,
-            name: roomType.name,
-            maxCapacity: roomType.maxCapacity,
-            basePrice: roomType.basePrice,
-          },
-          rooms: availableRooms,
-        });
-      }
+      const allocatedRoomsByType = await allocateRoomsForSelections(
+        tx,
+        selections,
+        start,
+        end,
+      );
 
       const createdBookings: {
         id: string;

@@ -19,14 +19,14 @@ export class AuthService {
     const normalizedEmail = dto.email.trim().toLowerCase();
     const attemptKey = `${clientIp}:${normalizedEmail}`;
 
-    this.loginAttemptService.ensureAllowed(attemptKey);
+    await this.loginAttemptService.ensureAllowed(attemptKey);
 
     const admin = await this.prisma.adminUser.findUnique({
       where: { email: normalizedEmail },
     });
 
     if (!admin) {
-      this.loginAttemptService.recordFailure(attemptKey);
+      await this.loginAttemptService.recordFailure(attemptKey);
       throw new UnauthorizedException('Identifiants invalides.');
     }
 
@@ -36,16 +36,16 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      this.loginAttemptService.recordFailure(attemptKey);
+      await this.loginAttemptService.recordFailure(attemptKey);
       throw new UnauthorizedException('Identifiants invalides.');
     }
 
     if (!ALLOWED_ADMIN_ROLES.has(admin.role)) {
-      this.loginAttemptService.recordFailure(attemptKey);
+      await this.loginAttemptService.recordFailure(attemptKey);
       throw new UnauthorizedException('Identifiants invalides.');
     }
 
-    this.loginAttemptService.reset(attemptKey);
+    await this.loginAttemptService.reset(attemptKey);
 
     const payload = {
       sub: admin.id,

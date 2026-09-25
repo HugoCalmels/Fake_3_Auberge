@@ -20,6 +20,7 @@ export async function getAdminRooms(): Promise<AdminRoomDto[]> {
   const response = await fetch(getApiUrl("admin/rooms"), {
     method: "GET",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -36,6 +37,7 @@ export async function createAdminRoom(
   const response = await fetch(getApiUrl("admin/rooms"), {
     method: "POST",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -53,6 +55,7 @@ export async function updateAdminRoomStatus(
   const response = await fetch(getApiUrl(`admin/rooms/${roomId}/status`), {
     method: "PATCH",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -70,6 +73,7 @@ export async function deleteAdminRoom(roomId: string): Promise<void> {
   const response = await fetch(getApiUrl(`admin/rooms/${roomId}`), {
     method: "DELETE",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
   });
 
   if (!response.ok) {

@@ -18,6 +18,7 @@ import {
   getNights,
   mapAdminBooking,
 } from './admin.utils';
+import { allocateRoomsForSelections } from '../bookings/booking-room-allocation.util';
 import { CreateAdminRoomDto } from './dto/create-admin-room.dto';
 import { UpdateAdminRoomStatusDto } from './dto/update-admin-room-status.dto';
 import { CreateAdminRoomTypeDto } from './dto/create-admin-room-type.dto';
@@ -347,131 +348,12 @@ export class AdminService {
           ? BookingSource.website
           : BookingSource.admin_manual;
 
-      const groupedSelections = new Map<string, typeof selections>();
-
-      for (const selection of selections) {
-        const key = selection.roomTypeId;
-
-        if (!groupedSelections.has(key)) {
-          groupedSelections.set(key, []);
-        }
-
-        groupedSelections.get(key)!.push(selection);
-      }
-
-      const allocatedRoomsByType = new Map<
-        string,
-        {
-          roomType: {
-            id: string;
-            code: string;
-            name: string;
-            maxCapacity: number;
-            basePrice: number;
-          };
-          rooms: { id: string; number: string }[];
-        }
-      >();
-
-      for (const [roomTypeId, grouped] of groupedSelections.entries()) {
-        const roomType = await tx.roomType.findUnique({
-          where: {
-            id: roomTypeId,
-          },
-        });
-
-        if (!roomType) {
-          throw new BadRequestException(
-            `Type de chambre introuvable: ${roomTypeId}`,
-          );
-        }
-
-        for (const selection of grouped) {
-          const persons = selection.adults + selection.children;
-
-          if (persons < 1) {
-            throw new BadRequestException(
-              'Chaque chambre doit contenir au moins une personne.',
-            );
-          }
-
-          if (persons > roomType.maxCapacity) {
-            throw new BadRequestException(
-              `Capacité maximale dépassée pour ${roomType.name}.`,
-            );
-          }
-
-          const mealPlan = await tx.mealPlan.findFirst({
-            where: {
-              code: selection.mealPlanCode as MealPlanCode,
-            },
-          });
-
-          if (!mealPlan) {
-            throw new BadRequestException('Formule introuvable.');
-          }
-
-          const allowedMealPlan = await tx.roomTypeMealPlan.findUnique({
-            where: {
-              roomTypeId_mealPlanId: {
-                roomTypeId: roomType.id,
-                mealPlanId: mealPlan.id,
-              },
-            },
-          });
-
-          if (!allowedMealPlan) {
-            throw new BadRequestException(
-              `La formule ${mealPlan.name} n'est pas disponible pour ${roomType.name}.`,
-            );
-          }
-        }
-
-        const availableRooms = await tx.room.findMany({
-          where: {
-            roomTypeId: roomType.id,
-            status: RoomStatus.available,
-            bookings: {
-              none: {
-                status: {
-                  in: [
-                    BookingStatus.pending,
-                    BookingStatus.confirmed,
-                    BookingStatus.checked_in,
-                  ],
-                },
-                startDate: { lt: end },
-                endDate: { gt: start },
-              },
-            },
-          },
-          orderBy: {
-            number: 'asc',
-          },
-          take: grouped.length,
-          select: {
-            id: true,
-            number: true,
-          },
-        });
-
-        if (availableRooms.length < grouped.length) {
-          throw new BadRequestException(
-            `Pas assez de chambres disponibles pour ${roomType.name}.`,
-          );
-        }
-
-        allocatedRoomsByType.set(roomTypeId, {
-          roomType: {
-            id: roomType.id,
-            code: roomType.code,
-            name: roomType.name,
-            maxCapacity: roomType.maxCapacity,
-            basePrice: roomType.basePrice,
-          },
-          rooms: availableRooms,
-        });
-      }
+      const allocatedRoomsByType = await allocateRoomsForSelections(
+        tx,
+        selections,
+        start,
+        end,
+      );
 
       const createdBookings: {
         id: string;
@@ -642,7 +524,9 @@ export class AdminService {
     const previousMealPlanName = booking.mealPlan?.name ?? null;
     const previousTotalPrice = booking.totalPrice;
 
-    const startDate = dto.startDate ? new Date(dto.startDate) : booking.startDate;
+    const startDate = dto.startDate
+      ? new Date(dto.startDate)
+      : booking.startDate;
     const endDate = dto.endDate ? new Date(dto.endDate) : booking.endDate;
 
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
@@ -653,19 +537,12 @@ export class AdminService {
       throw new BadRequestException('Dates invalides.');
     }
 
-    const dtoWithGuest = dto as UpdateAdminBookingDto & {
-      guestName?: string;
-      guestEmail?: string;
-    };
-
     const guestName =
-      dtoWithGuest.guestName !== undefined
-        ? dtoWithGuest.guestName.trim()
-        : booking.guestName;
+      dto.guestName !== undefined ? dto.guestName.trim() : booking.guestName;
 
     const guestEmail =
-      dtoWithGuest.guestEmail !== undefined
-        ? dtoWithGuest.guestEmail.trim().toLowerCase()
+      dto.guestEmail !== undefined
+        ? dto.guestEmail.trim().toLowerCase()
         : booking.guestEmail;
 
     if (!guestName) {
@@ -750,7 +627,8 @@ export class AdminService {
     const roomPrice = booking.room.roomType.basePrice * nights;
 
     const mealPlanPrice = nextMealPlan
-      ? (nextMealPlan.adultPrice * adults + nextMealPlan.childPrice * children) *
+      ? (nextMealPlan.adultPrice * adults +
+          nextMealPlan.childPrice * children) *
         nights
       : 0;
 
@@ -1173,7 +1051,10 @@ export class AdminService {
     const changes = this.getBookingEditChanges(input);
 
     await this.systemLogsService.create({
-      type: this.getAdminBookingEditLogType(input.previousStatus, input.nextStatus),
+      type: this.getAdminBookingEditLogType(
+        input.previousStatus,
+        input.nextStatus,
+      ),
       bookingId: input.bookingId,
       bookingGroupId: input.bookingGroupId ?? undefined,
       message: this.getAdminBookingEditMessage(input, changes),
@@ -1191,8 +1072,7 @@ export class AdminService {
 
         changes,
         statusChanged: input.previousStatus !== input.nextStatus,
-        paymentChanged:
-          input.previousPaymentStatus !== input.nextPaymentStatus,
+        paymentChanged: input.previousPaymentStatus !== input.nextPaymentStatus,
         totalPrice: input.nextTotalPrice,
       },
     });
@@ -1342,7 +1222,11 @@ export class AdminService {
       previousStatus: BookingStatus;
       nextStatus: BookingStatus;
     },
-    changes: Array<{ label: string; from?: string | number | null; to?: string | number | null }>,
+    changes: Array<{
+      label: string;
+      from?: string | number | null;
+      to?: string | number | null;
+    }>,
   ) {
     if (input.previousStatus !== input.nextStatus) {
       if (input.nextStatus === BookingStatus.checked_in) {

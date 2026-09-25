@@ -49,7 +49,9 @@ npm run db:seed
 npm run db:studio
 ```
 
-Compte admin de demo :
+Compte admin de demo (local uniquement) :
 
 - email: `owner@auberge.com`
 - mot de passe: `admin123456`
+
+Pour toute instance exposee publiquement, definissez `SEED_ADMIN_EMAIL` et `SEED_ADMIN_PASSWORD` avant `npm run db:seed` afin de ne pas deployer ces identifiants par defaut.

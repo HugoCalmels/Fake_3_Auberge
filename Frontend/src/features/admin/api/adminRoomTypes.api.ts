@@ -10,6 +10,7 @@ export async function getAdminRoomTypes(): Promise<AdminRoomTypeDto[]> {
   const response = await fetch(getApiUrl("admin/room-types"), {
     method: "GET",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     cache: "no-store",
   });
 
@@ -29,6 +30,7 @@ export async function createAdminRoomType(
   const response = await fetch(getApiUrl("admin/room-types"), {
     method: "POST",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -49,6 +51,7 @@ export async function updateAdminRoomType(
   const response = await fetch(getApiUrl(`admin/room-types/${roomTypeId}`), {
     method: "PATCH",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -66,6 +69,7 @@ export async function deleteAdminRoomType(roomTypeId: string): Promise<void> {
   const response = await fetch(getApiUrl(`admin/room-types/${roomTypeId}`), {
     method: "DELETE",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -85,6 +89,7 @@ export async function uploadAdminRoomTypeImage(file: File): Promise<{
   const response = await fetch(getApiUrl("admin/room-types/upload-image"), {
     method: "POST",
     headers: getAdminAuthHeaders(false),
+    credentials: "include",
     body: formData,
   });
 

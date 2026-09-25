@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Headers,
-  HttpCode,
-  Post,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, Req } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { CreateBookingCheckoutDto } from './dto/create-booking-checkout.dto';
@@ -29,12 +22,18 @@ export class PaymentsController {
 
   @Post('booking-payment-intent/confirm')
   confirmBookingPaymentIntent(@Body() dto: PaymentIntentActionDto) {
-    return this.paymentsService.confirmBookingPaymentIntent(dto.paymentIntentId);
+    return this.paymentsService.confirmBookingPaymentIntent(
+      dto.paymentIntentId,
+      dto.clientSecret,
+    );
   }
 
   @Post('booking-payment-intent/cancel')
   cancelBookingPaymentIntent(@Body() dto: PaymentIntentActionDto) {
-    return this.paymentsService.cancelBookingPaymentIntent(dto.paymentIntentId);
+    return this.paymentsService.cancelBookingPaymentIntent(
+      dto.paymentIntentId,
+      dto.clientSecret,
+    );
   }
 
   @Post('stripe/webhook')

@@ -46,10 +46,20 @@ async function main() {
   await prisma.roomType.deleteMany();
   await prisma.adminUser.deleteMany();
 
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "owner@auberge.com";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "admin123456";
+
+  if (!process.env.SEED_ADMIN_PASSWORD) {
+    console.warn(
+      "SEED_ADMIN_PASSWORD non defini : utilisation du mot de passe demo par defaut. " +
+        "Definissez SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD avant de seeder une instance publique.",
+    );
+  }
+
   await prisma.adminUser.create({
     data: {
-      email: "owner@auberge.com",
-      passwordHash: await bcrypt.hash("admin123456", 10),
+      email: adminEmail,
+      passwordHash: await bcrypt.hash(adminPassword, 10),
     },
   });
 

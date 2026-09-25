@@ -1,62 +1,82 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-
-type LoginAttemptRecord = {
-  count: number;
-  lockedUntil: number;
-  firstAttemptAt: number;
-};
+import { PrismaService } from '../../prisma/prisma.service';
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class LoginAttemptService {
-  private readonly attempts = new Map<string, LoginAttemptRecord>();
+  constructor(private readonly prisma: PrismaService) {}
 
-  ensureAllowed(key: string) {
-    const attempt = this.attempts.get(key);
+  async ensureAllowed(key: string) {
+    const attempt = await this.prisma.loginAttempt.findUnique({
+      where: { key },
+    });
 
     if (!attempt) {
       return;
     }
 
-    const now = Date.now();
+    const now = new Date();
 
-    if (attempt.lockedUntil > now) {
+    if (attempt.lockedUntil && attempt.lockedUntil > now) {
       throw new HttpException(
         'Trop de tentatives. Reessayez dans quelques minutes.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    if (now - attempt.firstAttemptAt > LOGIN_WINDOW_MS) {
-      this.attempts.delete(key);
+    if (now.getTime() - attempt.firstAttemptAt.getTime() > LOGIN_WINDOW_MS) {
+      await this.prisma.loginAttempt.delete({ where: { key } }).catch(() => {
+        // Already reset by a concurrent request — nothing to do.
+      });
     }
   }
 
-  recordFailure(key: string) {
-    const now = Date.now();
-    const current = this.attempts.get(key);
+  async recordFailure(key: string) {
+    const now = new Date();
+    const current = await this.prisma.loginAttempt.findUnique({
+      where: { key },
+    });
 
-    if (!current || now - current.firstAttemptAt > LOGIN_WINDOW_MS) {
-      this.attempts.set(key, {
-        count: 1,
-        lockedUntil: 0,
-        firstAttemptAt: now,
+    if (
+      !current ||
+      now.getTime() - current.firstAttemptAt.getTime() > LOGIN_WINDOW_MS
+    ) {
+      await this.prisma.loginAttempt.upsert({
+        where: { key },
+        create: {
+          key,
+          count: 1,
+          lockedUntil: null,
+          firstAttemptAt: now,
+        },
+        update: {
+          count: 1,
+          lockedUntil: null,
+          firstAttemptAt: now,
+        },
       });
       return;
     }
 
     const nextCount = current.count + 1;
 
-    this.attempts.set(key, {
-      count: nextCount,
-      lockedUntil: nextCount >= MAX_LOGIN_ATTEMPTS ? now + LOGIN_WINDOW_MS : 0,
-      firstAttemptAt: current.firstAttemptAt,
+    await this.prisma.loginAttempt.update({
+      where: { key },
+      data: {
+        count: nextCount,
+        lockedUntil:
+          nextCount >= MAX_LOGIN_ATTEMPTS
+            ? new Date(now.getTime() + LOGIN_WINDOW_MS)
+            : null,
+      },
     });
   }
 
-  reset(key: string) {
-    this.attempts.delete(key);
+  async reset(key: string) {
+    await this.prisma.loginAttempt.delete({ where: { key } }).catch(() => {
+      // Nothing to reset.
+    });
   }
 }

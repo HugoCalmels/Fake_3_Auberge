@@ -14,12 +14,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
 @Module({
   imports: [BookingsModule, SystemLogsModule, MailerModule, InvoicesModule],
   controllers: [PaymentsController],
-  providers: [
-    PrismaService,
-    PaymentsService,
-    PendingBookingsCleanupService,
-
-  ],
+  providers: [PrismaService, PaymentsService, PendingBookingsCleanupService],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

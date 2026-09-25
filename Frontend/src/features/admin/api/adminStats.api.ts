@@ -30,6 +30,7 @@ export async function getAdminStats(): Promise<AdminStatsDashboardDto> {
   const response = await fetch(getApiUrl("admin/stats"), {
     method: "GET",
     headers: getAdminAuthHeaders(),
+    credentials: "include",
     cache: "no-store",
   });
 

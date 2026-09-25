@@ -4,4 +4,8 @@ export class PaymentIntentActionDto {
   @IsString()
   @MinLength(1)
   paymentIntentId: string;
+
+  @IsString()
+  @MinLength(1)
+  clientSecret: string;
 }

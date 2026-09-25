@@ -118,6 +118,7 @@ function BookingPaymentBlockInner({
     }
 
     let paymentIntentId: string | null = null;
+    let clientSecret: string | null = null;
 
     try {
       const intent = await createBookingPaymentIntent({
@@ -136,6 +137,7 @@ function BookingPaymentBlockInner({
       });
 
       paymentIntentId = intent.paymentIntentId;
+      clientSecret = intent.clientSecret;
 
       const result = await stripe.confirmCardPayment(intent.clientSecret, {
         payment_method: {
@@ -149,14 +151,14 @@ function BookingPaymentBlockInner({
       });
 
       if (result.error) {
-        await safeCancelPending(paymentIntentId);
+        await safeCancelPending(paymentIntentId, clientSecret);
 
         onPaymentError(getStripeErrorMessage(result.error));
         return;
       }
 
       if (result.paymentIntent?.status !== "succeeded") {
-        await safeCancelPending(paymentIntentId);
+        await safeCancelPending(paymentIntentId, clientSecret);
 
         onPaymentError(
           `Paiement incomplet. Statut Stripe : ${
@@ -166,12 +168,12 @@ function BookingPaymentBlockInner({
         return;
       }
 
-      await confirmBookingPaymentIntent(result.paymentIntent.id);
+      await confirmBookingPaymentIntent(result.paymentIntent.id, clientSecret);
 
       onPaymentSuccess(result.paymentIntent.id);
     } catch (error) {
       if (paymentIntentId) {
-        await safeCancelPending(paymentIntentId);
+        await safeCancelPending(paymentIntentId, clientSecret);
       }
 
       onPaymentError(
@@ -182,9 +184,14 @@ function BookingPaymentBlockInner({
     }
   }
 
-  async function safeCancelPending(paymentIntentId: string) {
+  async function safeCancelPending(
+    paymentIntentId: string,
+    clientSecret: string | null,
+  ) {
+    if (!clientSecret) return;
+
     try {
-      await cancelBookingPaymentIntent(paymentIntentId);
+      await cancelBookingPaymentIntent(paymentIntentId, clientSecret);
     } catch {
       // On affiche l'erreur Stripe principale au client.
       // Le nettoyage peut aussi être rattrapé plus tard par admin/cron.

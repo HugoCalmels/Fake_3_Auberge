@@ -1,28 +1,10 @@
-const ADMIN_TOKEN_KEY = "admin_token";
-
-export function getStoredAdminToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(ADMIN_TOKEN_KEY);
-}
-
-export function setStoredAdminToken(token: string) {
-  localStorage.setItem(ADMIN_TOKEN_KEY, token);
-}
-
-export function removeStoredAdminToken() {
-  localStorage.removeItem(ADMIN_TOKEN_KEY);
-}
-
+// The admin session lives in a httpOnly cookie set by the backend on login —
+// it's never readable from JS, so every admin fetch must pass
+// `credentials: "include"` for the browser to send it cross-origin.
 export function getAdminAuthHeaders(withJson = true) {
-  const token = getStoredAdminToken();
-
   const headers: Record<string, string> = {
     ...(withJson ? { "Content-Type": "application/json" } : {}),
   };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
 
   return headers;
 }

@@ -1,9 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import {
-  BookingStatus,
-  PaymentStatus,
-} from "src/generated/prisma/client";
-import { PrismaService } from "src/prisma/prisma.service";
+import { Injectable } from '@nestjs/common';
+import { BookingStatus, PaymentStatus } from 'src/generated/prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 const DAY_MS = 86_400_000;
 
@@ -95,13 +92,13 @@ export class StatsService {
       }),
 
       this.prisma.booking.groupBy({
-        by: ["roomId"],
+        by: ['roomId'],
         _count: {
           id: true,
         },
         orderBy: {
           _count: {
-            id: "desc",
+            id: 'desc',
           },
         },
         take: 5,
@@ -125,12 +122,16 @@ export class StatsService {
       }),
     ]);
 
-    const monthlyRevenue = sum(monthPaidBookings.map((booking) => booking.totalPrice));
+    const monthlyRevenue = sum(
+      monthPaidBookings.map((booking) => booking.totalPrice),
+    );
 
     const totalRevenue = sum(paidBookings.map((booking) => booking.totalPrice));
 
     const averageBasket =
-      paidBookings.length > 0 ? Math.round(totalRevenue / paidBookings.length) : 0;
+      paidBookings.length > 0
+        ? Math.round(totalRevenue / paidBookings.length)
+        : 0;
 
     const monthSoldNights = sum(
       monthPaidBookings.map((booking) =>
@@ -154,7 +155,12 @@ export class StatsService {
 
     const forecastSoldNights = sum(
       forecastBookings.map((booking) =>
-        getNightsWithinRange(booking.startDate, booking.endDate, now, next30Days),
+        getNightsWithinRange(
+          booking.startDate,
+          booking.endDate,
+          now,
+          next30Days,
+        ),
       ),
     );
 
@@ -177,7 +183,7 @@ export class StatsService {
         });
 
         return {
-          roomNumber: room?.number ?? "—",
+          roomNumber: room?.number ?? '—',
           bookings: item._count.id,
         };
       }),
@@ -240,8 +246,8 @@ function buildReservationsByMonth(
     }).length;
 
     return {
-      label: new Date(year, monthIndex, 1).toLocaleDateString("fr-FR", {
-        month: "short",
+      label: new Date(year, monthIndex, 1).toLocaleDateString('fr-FR', {
+        month: 'short',
       }),
       value: count,
     };
