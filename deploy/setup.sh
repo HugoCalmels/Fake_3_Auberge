@@ -57,6 +57,12 @@ echo "==> Docker (Ubuntu packages)"
 apt-get install -yq docker.io docker-compose-v2
 systemctl enable --now docker
 
+echo "==> Nightly backups (03:00, see deploy/backup.sh)"
+cat > /etc/cron.d/auberge-backup <<'EOF'
+0 3 * * * root [ -f /opt/auberge/deploy/backup.sh ] && bash /opt/auberge/deploy/backup.sh >> /var/log/auberge-backup.log 2>&1
+EOF
+chmod 644 /etc/cron.d/auberge-backup
+
 echo "==> Done"
 docker --version
 docker compose version
