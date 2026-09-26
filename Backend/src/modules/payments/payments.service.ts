@@ -16,6 +16,7 @@ import { SystemLogsService } from '../system-logs/system-logs.service';
 import { CreateBookingCheckoutDto } from './dto/create-booking-checkout.dto';
 import { CreateBookingPaymentIntentDto } from './dto/create-booking-payment-intent.dto';
 import { MailerService } from '../mailer/mailer.service';
+import { isReservedTestEmail } from '../mailer/test-email.util';
 import { InvoicesService } from '../invoices/invoices.service';
 import { InvoicePdfService } from '../invoices/invoice-pdf.service';
 
@@ -684,6 +685,7 @@ export class PaymentsService {
     if (confirmedBookings.length === 0) return;
 
     const firstBooking = confirmedBookings[0];
+    const skipEmails = isReservedTestEmail(firstBooking.guestEmail);
 
     const totalPaid = confirmedBookings.reduce(
       (sum, booking) => sum + booking.totalPrice,
@@ -705,6 +707,13 @@ export class PaymentsService {
 
       invoiceNumber = invoice.number;
       invoicePdfBase64 = invoicePdf.toString('base64');
+    }
+
+    if (skipEmails) {
+      this.logger.log(
+        `Emails non envoyés (adresse de test ${firstBooking.guestEmail}) pour bookingGroupId=${input.bookingGroupId}`,
+      );
+      return;
     }
 
     try {
