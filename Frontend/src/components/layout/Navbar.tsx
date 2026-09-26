@@ -16,7 +16,7 @@ const NAV_LINKS = [
   { label: "Hébergement", hash: "#hebergement" },
   { label: "Restaurant", hash: "#restaurant" },
   { label: "Groupes", hash: "#groupes" },
-  { label: "Infos", hash: "#contact" },
+  { label: "Infos/contact", hash: "#contact" },
 ];
 
 export default function Navbar({

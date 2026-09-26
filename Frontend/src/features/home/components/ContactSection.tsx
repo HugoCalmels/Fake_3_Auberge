@@ -28,6 +28,9 @@ type FormState = {
 };
 
 type FormErrors = Partial<Record<keyof FormState, string>>;
+type Touched = Partial<Record<keyof FormState, boolean>>;
+
+const MESSAGE_MIN_LENGTH = 10;
 
 const INITIAL_FORM: FormState = {
   name: "",
@@ -37,32 +40,43 @@ const INITIAL_FORM: FormState = {
 
 export default function ContactSection() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
-  const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
+  // Un champ n'affiche son erreur qu'une fois quitté (blur) : on ne crie pas
+  // "email invalide" pendant que la personne est encore en train de le taper.
+  const [touched, setTouched] = useState<Touched>({});
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
   const messageLength = form.message.trim().length;
+  const liveErrors = validateForm(form);
+  const isFormValid = Object.keys(liveErrors).length === 0;
+
+  const fieldErrors: FormErrors = {
+    name: touched.name ? liveErrors.name : undefined,
+    email: touched.email ? liveErrors.email : undefined,
+    message: touched.message ? liveErrors.message : undefined,
+  };
 
   function updateField(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setSuccess("");
     setError("");
+  }
 
-    if (fieldErrors[field]) {
-      setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
+  function markTouched(field: keyof FormState) {
+    if (form[field].trim() === "") return; // champ laissé vide sans rien taper : on ne le signale pas encore
+
+    setTouched((prev) => ({ ...prev, [field]: true }));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const nextErrors = validateForm(form);
-    setFieldErrors(nextErrors);
     setSuccess("");
     setError("");
 
-    if (Object.keys(nextErrors).length > 0) {
+    if (!isFormValid) {
+      setTouched({ name: true, email: true, message: true });
       setError("Merci de corriger les champs indiqués avant l’envoi.");
       return;
     }
@@ -77,7 +91,7 @@ export default function ContactSection() {
       });
 
       setForm(INITIAL_FORM);
-      setFieldErrors({});
+      setTouched({});
       setSuccess("Message envoyé avec succès. Nous reviendrons vers vous rapidement.");
     } catch (err) {
       setError(
@@ -185,6 +199,8 @@ export default function ContactSection() {
                 <input
                   value={form.name}
                   onChange={(event) => updateField("name", event.target.value)}
+                  onBlur={() => markTouched("name")}
+                  aria-invalid={Boolean(fieldErrors.name)}
                   placeholder="Votre nom"
                   className={getInputClassName(Boolean(fieldErrors.name))}
                   disabled={sending}
@@ -196,6 +212,8 @@ export default function ContactSection() {
                 <input
                   value={form.email}
                   onChange={(event) => updateField("email", event.target.value)}
+                  onBlur={() => markTouched("email")}
+                  aria-invalid={Boolean(fieldErrors.email)}
                   type="email"
                   placeholder="vous@email.fr"
                   className={getInputClassName(Boolean(fieldErrors.email))}
@@ -204,10 +222,13 @@ export default function ContactSection() {
                 />
               </Field>
 
-              <Field label="Message" error={fieldErrors.message}>
+              {/* Pas de texte d'erreur ici : c'est le compteur dessous qui l'indique */}
+              <Field label="Message">
                 <textarea
                   value={form.message}
                   onChange={(event) => updateField("message", event.target.value)}
+                  onBlur={() => markTouched("message")}
+                  aria-invalid={Boolean(fieldErrors.message)}
                   rows={6}
                   maxLength={3000}
                   placeholder="Votre message"
@@ -215,8 +236,23 @@ export default function ContactSection() {
                   disabled={sending}
                 />
 
-                <div className="mt-2 text-right text-xs text-[#8a8176]">
-                  {messageLength}/3000
+                <div
+                  className={`mt-2 text-right text-xs ${
+                    fieldErrors.message
+                      ? "font-medium text-[#B91C1C]"
+                      : messageLength > 0 && messageLength < MESSAGE_MIN_LENGTH
+                        ? "font-medium text-[#8c7b5d]"
+                        : "text-[#8a8176]"
+                  }`}
+                  aria-live="polite"
+                >
+                  {messageLength < MESSAGE_MIN_LENGTH
+                    ? `${MESSAGE_MIN_LENGTH} caractères minimum${
+                        messageLength > 0
+                          ? ` · encore ${MESSAGE_MIN_LENGTH - messageLength}`
+                          : ""
+                      }`
+                    : `${messageLength}/3000`}
                 </div>
               </Field>
             </div>
@@ -224,8 +260,13 @@ export default function ContactSection() {
             <div className="mt-3">
               <button
                 type="submit"
-                disabled={sending}
-                className="cursor-pointer rounded-full bg-[#314835] px-8 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#f4efe7] shadow-sm transition hover:bg-[#263d2f] disabled:cursor-not-allowed disabled:bg-[#7f8d81] disabled:opacity-70"
+                disabled={sending || !isFormValid}
+                title={
+                  !isFormValid && !sending
+                    ? "Nom, email valide et message de 10 caractères minimum"
+                    : undefined
+                }
+                className="cursor-pointer rounded-full bg-[#314835] px-8 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#f4efe7] shadow-sm transition hover:bg-[#263d2f] disabled:cursor-not-allowed disabled:bg-[#7f8d81] disabled:opacity-70 disabled:shadow-none"
               >
                 {sending ? "Envoi..." : "Envoyer"}
               </button>
@@ -302,15 +343,15 @@ function validateForm(form: FormState): FormErrors {
   const errors: FormErrors = {};
 
   if (form.name.trim().length < 2) {
-    errors.name = "Indiquez un nom valide.";
+    errors.name = "Votre nom doit contenir au moins 2 caractères.";
   }
 
   if (!isValidEmail(form.email)) {
-    errors.email = "Indiquez une adresse email valide.";
+    errors.email = "Adresse email invalide (ex. nom@domaine.fr).";
   }
 
-  if (form.message.trim().length < 10) {
-    errors.message = "Votre message doit contenir au moins 10 caractères.";
+  if (form.message.trim().length < MESSAGE_MIN_LENGTH) {
+    errors.message = `Votre message doit contenir au moins ${MESSAGE_MIN_LENGTH} caractères.`;
   }
 
   return errors;
@@ -414,7 +455,10 @@ function Field({
       {children}
 
       {error ? (
-        <p className="mt-2 text-sm font-medium text-[#B91C1C]">{error}</p>
+        // span (pas p) : la règle globale `p { color; margin }` écraserait la couleur et la marge
+        <span className="mt-2 block text-sm font-medium text-[#B91C1C]">
+          {error}
+        </span>
       ) : null}
     </label>
   );
