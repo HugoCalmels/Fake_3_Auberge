@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · lint, types, tests
+    runs-on: ubuntu-latest
+    env:
+      # prisma.config.ts lit DATABASE_URL ; aucune connexion n'est faite ici
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx eslint "{src,test}/**/*.ts"
+      - run: npm run build
+      - run: npm test
+
+  frontend:
+    name: Frontend · lint, types, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+  e2e:
+    name: E2E · Playwright (Chromium)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: auberge
+          POSTGRES_PASSWORD: auberge
+          POSTGRES_DB: auberge
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U auberge" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      # Clés Stripe de TEST uniquement, à ajouter dans Settings → Secrets → Actions
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_TEST_PUBLISHABLE_KEY }}
+      DATABASE_URL: postgresql://auberge:auberge@localhost:5432/auberge?schema=public
+      JWT_SECRET: ci-only-jwt-secret
+      FRONTEND_ORIGIN: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    steps:
+      - name: Skip when Stripe test secrets are not configured
+        id: guard
+        run: |
+          if [ -z "$STRIPE_SECRET_KEY" ] || [ -z "$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" ]; then
+            echo "::notice::E2E skipped: add STRIPE_TEST_SECRET_KEY and STRIPE_TEST_PUBLISHABLE_KEY repository secrets to enable it."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$STRIPE_SECRET_KEY" != sk_test_* ]]; then
+            echo "::error::STRIPE_TEST_SECRET_KEY must be a TEST key (sk_test_...)."
+            exit 1
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.enabled == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.enabled == 'true'
+        with:
+          node-version: 22
+
+      - name: Start API (migrations + seed)
+        if: steps.guard.outputs.enabled == 'true'
+        working-directory: Backend
+        run: |
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+          npx tsx prisma/seed.ts
+          npm run build
+          nohup node dist/src/main.js > ../api.log 2>&1 &
+
+      - name: Start frontend
+        if: steps.guard.outputs.enabled == 'true'
+        working-directory: Frontend
+        run: |
+          npm ci
+          npm run build
+          nohup npm run start > ../web.log 2>&1 &
+          npx --yes wait-on -t 120000 http://localhost:3001/bookings/room-types http://localhost:3000
+
+      - name: Run Playwright
+        if: steps.guard.outputs.enabled == 'true'
+        working-directory: Frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test --project=chromium
+
+      - name: Upload report and server logs
+        if: failure() && steps.guard.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            Frontend/playwright-report
+            Frontend/test-results
+            api.log
+            web.log
+          retention-days: 7
