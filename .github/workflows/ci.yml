@@ -31,6 +31,42 @@ jobs:
       - run: npm run build
       - run: npm test
 
+  backend-integration:
+    name: Backend · integration tests (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: auberge
+          POSTGRES_PASSWORD: auberge
+          POSTGRES_DB: auberge
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U auberge" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://auberge:auberge@localhost:5432/auberge?schema=public
+      JWT_SECRET: ci-only-jwt-secret
+      FRONTEND_ORIGIN: http://localhost:3000
+      # Only checked for presence at startup; these tests never call Stripe
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/seed.ts
+      - run: npm run test:e2e
+
   frontend:
     name: Frontend · lint, types, build
     runs-on: ubuntu-latest

@@ -47,7 +47,26 @@ describe('App (e2e)', () => {
     await app.close();
   });
 
+  describe('health', () => {
+    it('GET /health reports the API and database as up', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/health')
+        .expect(200);
+
+      expect(response.body).toEqual({ status: 'ok', database: 'up' });
+    });
+  });
+
   describe('admin routes require authentication', () => {
+    it.each([
+      '/admin/bookings',
+      '/admin/rooms',
+      '/admin/room-types',
+      '/admin/planning',
+    ])('GET %s without a session is rejected', (path) => {
+      return request(app.getHttpServer()).get(path).expect(401);
+    });
+
     it('GET /admin/stats without a session is rejected', () => {
       return request(app.getHttpServer()).get('/admin/stats').expect(401);
     });
@@ -220,6 +239,32 @@ describe('App (e2e)', () => {
       });
       expect(stored?.status).toBe('pending');
       expect(stored?.paymentStatus).toBe('unpaid');
+    });
+
+    it('rejects a website booking starting in the past', async () => {
+      const roomTypes = await request(app.getHttpServer())
+        .get('/bookings/room-types')
+        .expect(200);
+
+      const response = await request(app.getHttpServer())
+        .post('/bookings')
+        .send({
+          startDate: '2020-01-10',
+          endDate: '2020-01-12',
+          guestName: 'E2E Past Date',
+          guestEmail: 'e2e-past@example.com',
+          selections: [
+            {
+              roomTypeId: roomTypes.body[0].id,
+              adults: 1,
+              children: 0,
+              mealPlanCode: 'room_only',
+            },
+          ],
+        })
+        .expect(400);
+
+      expect(response.body.message).toContain('passé');
     });
 
     it('rejects a booking payload missing required guest fields', () => {
