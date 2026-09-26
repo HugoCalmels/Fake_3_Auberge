@@ -4,6 +4,7 @@ import {
   calendarLabel,
   openBookingModal,
   pickCalendarDate,
+  watchCspViolations,
 } from "./helpers";
 
 test.describe("Réservation", () => {
@@ -33,6 +34,7 @@ test.describe("Réservation", () => {
     const offset = 60 + Math.floor(Math.random() * 200);
     const checkIn = addDays(new Date(), offset);
     const checkOut = addDays(checkIn, 2);
+    const cspViolations = watchCspViolations(page);
 
     await openBookingModal(page);
     await pickCalendarDate(page, checkIn);
@@ -70,5 +72,6 @@ test.describe("Réservation", () => {
     await expect(page.getByText("Paiement reçu")).toBeVisible({
       timeout: 45_000,
     });
+    expect(cspViolations).toEqual([]);
   });
 });

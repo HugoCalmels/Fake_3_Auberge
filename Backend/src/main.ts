@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { getFrontendOrigin } from './modules/auth/auth.config';
@@ -11,6 +12,13 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  app.use(
+    helmet({
+      // Les photos des chambres (/rooms/*) sont affichées par le front, servi
+      // depuis un autre domaine : sans ça, le navigateur les bloquerait.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.use(cookieParser());
 
   const corsOrigins =

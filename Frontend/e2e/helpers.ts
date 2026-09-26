@@ -1,5 +1,18 @@
 import { expect, type Page } from "@playwright/test";
 
+// Collecte les violations de la Content-Security-Policy (next.config.ts) pour
+// qu'un test échoue si une ressource légitime (Stripe, API...) est bloquée.
+export function watchCspViolations(page: Page) {
+  const violations: string[] = [];
+
+  page.on("console", (message) => {
+    const text = message.text();
+    if (/Content[- ]Security[- ]Policy/i.test(text)) violations.push(text);
+  });
+
+  return violations;
+}
+
 export function addDays(date: Date, days: number) {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);
