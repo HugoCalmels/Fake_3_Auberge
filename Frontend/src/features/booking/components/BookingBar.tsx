@@ -13,7 +13,7 @@ export default function BookingBar({ openBooking }: BookingBarProps) {
             </span>
 
             <span className="mt-1 text-[14px] font-semibold text-[#2d2c29] md:text-[15px]">
-              Ouvert toute l'année
+              Ouvert toute l’année
             </span>
           </div>
 

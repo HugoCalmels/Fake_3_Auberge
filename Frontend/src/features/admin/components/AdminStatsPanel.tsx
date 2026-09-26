@@ -20,7 +20,7 @@ export default function AdminStatsPanel({ stats }: Props) {
         </h2>
 
         <p className="mt-2 text-sm text-[#6c675f]">
-          Activité, réservations et revenus de l'auberge.
+          Activité, réservations et revenus de l’auberge.
         </p>
       </div>
 

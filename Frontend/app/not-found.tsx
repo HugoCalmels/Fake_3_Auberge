@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function NotFoundPage() {
   return (
     <main className="min-h-screen bg-[#ece7df] text-[#2d2c29]">
@@ -17,12 +19,12 @@ export default function NotFoundPage() {
             La page que vous recherchez n’existe pas ou n’est plus disponible.
           </p>
 
-          <a
+          <Link
             href="/"
             className="mt-10 inline-flex items-center rounded-full bg-[#314835] px-7 py-3 text-sm font-semibold uppercase tracking-[0.14em] !text-white transition hover:bg-[#3d5941]"
           >
             Retour à l’accueil
-          </a>
+          </Link>
         </div>
       </section>
     </main>

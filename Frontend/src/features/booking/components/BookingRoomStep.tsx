@@ -48,6 +48,9 @@ export default function BookingRoomsStep({
   }
 
   const sortedOffers = useMemo(() => {
+    const countSelected = (roomTypeId: string) =>
+      selectedRooms.filter((room) => room.offerId === roomTypeId).length;
+
     return [...offers].sort((a, b) => {
       const cheapestA = getCheapestOfferTotalPrice(a, nights);
       const cheapestB = getCheapestOfferTotalPrice(b, nights);
@@ -58,11 +61,11 @@ export default function BookingRoomsStep({
 
       const remainingA = Math.max(
         0,
-        a.availableRooms - getSelectedCountForOffer(a.id),
+        a.availableRooms - countSelected(a.id),
       );
       const remainingB = Math.max(
         0,
-        b.availableRooms - getSelectedCountForOffer(b.id),
+        b.availableRooms - countSelected(b.id),
       );
 
       if (remainingA !== remainingB) {

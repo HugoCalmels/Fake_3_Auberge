@@ -79,9 +79,23 @@ export default function Navbar({
     router.push("/");
   }
 
+  // Quand le parent demande de garder la navbar visible (nouveau token), on
+  // ajuste l'état pendant le rendu plutôt que dans un effet (évite un rendu en cascade)
+  const [lastKeepVisibleToken, setLastKeepVisibleToken] =
+    useState(keepVisibleToken);
+
+  if (keepVisibleToken !== lastKeepVisibleToken) {
+    setLastKeepVisibleToken(keepVisibleToken);
+
+    if (keepVisibleToken) {
+      setNavVisible(true);
+      setLangOpen(false);
+    }
+  }
+
   useEffect(() => {
     if (!keepVisibleToken) return;
-    keepNavbarVisible();
+    keepNavVisibleUntil.current = Date.now() + 1100;
   }, [keepVisibleToken]);
 
   useEffect(() => {
