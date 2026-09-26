@@ -36,6 +36,11 @@ a {
   text-decoration: none;
 }
 
+/* ⚠️ Ces règles sont volontairement HORS @layer : elles passent donc AVANT les
+   classes Tailwind. Sur h1-h6 et p, les classes text-*, font-*, m*-* sont
+   ignorées ; le design actuel a été calé avec ce comportement (passer en
+   @layer base modifierait ~45 éléments de la home). Pour styler un texte
+   précisément, utiliser un <span>/<div> ou un style inline. */
 h1,
 h2,
 h3,
