@@ -19,15 +19,18 @@ import { MailerService } from '../mailer/mailer.service';
 import { isReservedTestEmail } from '../mailer/test-email.util';
 import { InvoicesService } from '../invoices/invoices.service';
 import { InvoicePdfService } from '../invoices/invoice-pdf.service';
+import type {
+  StripeCheckoutSession,
+  StripeClient,
+  StripeEvent,
+  StripeMetadata,
+  StripePaymentIntent,
+} from './stripe.types';
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
-  // Le SDK stripe@22 ne réexpose plus les types de ressources (PaymentIntent,
-  // Event, Checkout.Session, Metadata...) depuis son point d'entrée public
-  // avec ce moduleResolution ("nodenext") ; `any` reste nécessaire ici sans
-  // import profond non supporté par le package ou un downgrade du SDK.
-  private readonly stripe: any;
+  private readonly stripe: StripeClient;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -167,7 +170,7 @@ export class PaymentsService {
       );
     }
 
-    let paymentIntent: any;
+    let paymentIntent: StripePaymentIntent;
 
     try {
       paymentIntent = await this.stripe.paymentIntents.create({
@@ -256,7 +259,7 @@ export class PaymentsService {
       throw new BadRequestException('Signature Stripe manquante.');
     }
 
-    let event: any;
+    let event: StripeEvent;
 
     try {
       event = this.stripe.webhooks.constructEvent(
@@ -488,13 +491,22 @@ export class PaymentsService {
       try {
         await this.stripe.paymentIntents.cancel(paymentIntentId);
       } catch (error) {
+        // Forme des erreurs Stripe utile ici (StripeInvalidRequestError)
+        const stripeError = error as
+          | {
+              code?: string;
+              message?: string;
+              payment_intent?: { status?: string };
+            }
+          | undefined;
+
         const isAlreadyCanceled =
-          error?.code === 'payment_intent_unexpected_state' &&
-          error?.payment_intent?.status === 'canceled';
+          stripeError?.code === 'payment_intent_unexpected_state' &&
+          stripeError?.payment_intent?.status === 'canceled';
 
         if (!isAlreadyCanceled) {
           this.logger.error(
-            `Échec de l'annulation Stripe pour ${paymentIntentId} : ${error?.message ?? error}`,
+            `Échec de l'annulation Stripe pour ${paymentIntentId} : ${stripeError?.message ?? 'erreur inconnue'}`,
           );
           throw error;
         }
@@ -537,7 +549,9 @@ export class PaymentsService {
     };
   }
 
-  private async confirmPaidBookingsFromPaymentIntent(paymentIntent: any) {
+  private async confirmPaidBookingsFromPaymentIntent(
+    paymentIntent: StripePaymentIntent,
+  ) {
     const bookingIds = this.getBookingIdsFromMetadata(paymentIntent.metadata);
     const bookingGroupId = this.getBookingGroupIdFromMetadata(
       paymentIntent.metadata,
@@ -619,7 +633,9 @@ export class PaymentsService {
     });
   }
 
-  private async markFailedBookingsFromPaymentIntent(paymentIntent: any) {
+  private async markFailedBookingsFromPaymentIntent(
+    paymentIntent: StripePaymentIntent,
+  ) {
     const bookingIds = this.getBookingIdsFromMetadata(paymentIntent.metadata);
     const bookingGroupId = this.getBookingGroupIdFromMetadata(
       paymentIntent.metadata,
@@ -751,7 +767,9 @@ export class PaymentsService {
     }
   }
 
-  private async cancelExpiredPendingBookingsFromSession(session: any) {
+  private async cancelExpiredPendingBookingsFromSession(
+    session: StripeCheckoutSession,
+  ) {
     const bookingIds = this.getBookingIdsFromSession(session);
 
     if (bookingIds.length === 0) {
@@ -851,27 +869,31 @@ export class PaymentsService {
           input.error instanceof Error
             ? input.error.message
             : input.error
-              ? String(input.error)
+              ? JSON.stringify(input.error)
               : undefined,
         ...input.metadata,
       },
     });
   }
 
-  private getBookingIdsFromSession(session: any) {
+  private getBookingIdsFromSession(session: StripeCheckoutSession) {
     return this.getBookingIdsFromMetadata(session.metadata);
   }
 
-  private getBookingIdsFromMetadata(metadata: any) {
+  private getBookingIdsFromMetadata(
+    metadata: StripeMetadata | null | undefined,
+  ): string[] {
     return (
       metadata?.bookingIds
         ?.split(',')
-        .map((id: string) => id.trim())
+        .map((id) => id.trim())
         .filter(Boolean) ?? []
     );
   }
 
-  private getBookingGroupIdFromMetadata(metadata: any) {
+  private getBookingGroupIdFromMetadata(
+    metadata: StripeMetadata | null | undefined,
+  ): string | null {
     return metadata?.bookingGroupId?.trim() || null;
   }
 

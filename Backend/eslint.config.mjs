@@ -33,9 +33,10 @@ export default tseslint.config(
     },
   },
   {
-    // supertest response bodies (`.body`) are untyped JSON by nature — e2e
-    // specs asserting on them would otherwise drown in unsafe-* noise.
-    files: ['test/**/*.e2e-spec.ts'],
+    // supertest response bodies (`.body`) and jest mock calls (`mock.calls`,
+    // `expect.any`) are untyped by nature — specs asserting on them would
+    // otherwise drown in unsafe-* noise.
+    files: ['test/**/*.e2e-spec.ts', 'src/**/*.spec.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
