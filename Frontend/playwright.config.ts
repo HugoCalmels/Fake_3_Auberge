@@ -4,6 +4,10 @@ import { defineConfig, devices } from "@playwright/test";
 // contact, admin). Ils tournent contre le front ET l'API locaux : si ton
 // `npm run dev` / `npm run start:dev` tournent déjà, ils sont réutilisés.
 // Lancer : npm run test:e2e   (ou npm run test:e2e:ui pour les voir tourner)
+// Contre la prod : E2E_BASE_URL=https://auberge-du-fauxcalm.netlify.app npm run test:e2e
+// (aucun serveur local n'est alors démarré ; le paiement utilise la carte de test)
+const externalBaseUrl = process.env.E2E_BASE_URL;
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
@@ -13,7 +17,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: externalBaseUrl ?? "http://localhost:3000",
     locale: "fr-FR",
     timezoneId: "Europe/Paris",
     trace: "retain-on-failure",
@@ -23,7 +27,7 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
-  webServer: [
+  webServer: externalBaseUrl ? undefined : [
     {
       command: "npm run start:dev",
       cwd: "../Backend",

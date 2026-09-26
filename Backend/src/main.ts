@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { join } from 'path';
 import { AppModule } from './app.module';
-import { getFrontendOrigin } from './modules/auth/auth.config';
+import { getFrontendOrigins } from './modules/auth/auth.config';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -29,8 +29,12 @@ async function bootstrap() {
 
   const corsOrigins =
     process.env.NODE_ENV === 'production'
-      ? [getFrontendOrigin()]
-      : [getFrontendOrigin(), 'http://localhost:3000', 'http://127.0.0.1:3000'];
+      ? getFrontendOrigins()
+      : [
+          ...getFrontendOrigins(),
+          'http://localhost:3000',
+          'http://127.0.0.1:3000',
+        ];
 
   app.enableCors({
     origin: corsOrigins,

@@ -36,6 +36,13 @@ export function getJwtExpiresIn(): StringValue {
   return (process.env.JWT_EXPIRES_IN || DEFAULT_JWT_EXPIRES_IN) as StringValue;
 }
 
-export function getFrontendOrigin() {
-  return process.env.FRONTEND_ORIGIN || DEFAULT_FRONTEND_ORIGIN;
+// FRONTEND_ORIGIN accepte plusieurs origines séparées par des virgules (ex.
+// l'adresse netlify.app et un domaine perso pendant une migration de domaine).
+export function getFrontendOrigins(): string[] {
+  const origins = (process.env.FRONTEND_ORIGIN || DEFAULT_FRONTEND_ORIGIN)
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  return origins.length > 0 ? origins : [DEFAULT_FRONTEND_ORIGIN];
 }
