@@ -18,6 +18,30 @@ describe('BookingsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('rejects a website booking starting in the past', async () => {
+    const prisma = { $transaction: jest.fn() };
+    const service = new BookingsService(prisma as never);
+
+    await expect(
+      service.createBooking({
+        startDate: '2020-01-10',
+        endDate: '2020-01-12',
+        guestName: 'Jean Dupont',
+        guestEmail: 'jean@example.com',
+        selections: [
+          {
+            roomTypeId: 'double',
+            adults: 2,
+            children: 0,
+            mealPlanCode: 'half_board',
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('creates a booking and computes pricing', async () => {
     const tx = {
       roomType: {
@@ -84,8 +108,8 @@ describe('BookingsService', () => {
 
     await expect(
       service.createBooking({
-        startDate: '2026-04-10',
-        endDate: '2026-04-12',
+        startDate: '2099-04-10',
+        endDate: '2099-04-12',
         guestName: 'Jean Dupont',
         guestEmail: 'JEAN@EXAMPLE.COM',
         selections: [

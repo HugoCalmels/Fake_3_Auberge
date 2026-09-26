@@ -34,7 +34,7 @@ export function useBookingFlow() {
   const [guestPhone, setGuestPhone] = useState("");
 
   const [paymentMethod, setPaymentMethod] =
-    useState<BookingPaymentMethod>("card");
+    useState<BookingPaymentMethod | null>(null);
   const [paymentReady, setPaymentReady] = useState(false);
   const [paymentSubmitTrigger, setPaymentSubmitTrigger] = useState(0);
   const [paymentSuccessIntentId, setPaymentSuccessIntentId] = useState<

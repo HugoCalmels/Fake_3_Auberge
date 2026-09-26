@@ -15,7 +15,7 @@ type Props = {
   guestName: string;
   guestEmail: string;
   guestPhone: string;
-  paymentMethod: BookingPaymentMethod;
+  paymentMethod: BookingPaymentMethod | null;
   paymentSubmitTrigger: number;
   onGuestNameChange: (value: string) => void;
   onGuestEmailChange: (value: string) => void;

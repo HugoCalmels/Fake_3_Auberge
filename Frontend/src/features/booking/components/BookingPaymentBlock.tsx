@@ -26,7 +26,7 @@ type Props = {
   guestEmail: string;
   guestPhone: string;
   selectedRooms: SelectedRoomLine[];
-  selectedMethod: BookingPaymentMethod;
+  selectedMethod: BookingPaymentMethod | null;
   submitTrigger: number;
   onSelectedMethodChange: (value: BookingPaymentMethod) => void;
   onPaymentReadyChange: (value: boolean) => void;
@@ -37,6 +37,13 @@ type Props = {
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
+
+// Clé de test Stripe = site de démo : on affiche la carte de test au visiteur
+const IS_STRIPE_TEST_MODE =
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_test_") ??
+  false;
+
+const DEMO_CARD_NUMBER = "4242 4242 4242 4242";
 
 export default function BookingPaymentBlock(props: Props) {
   if (!stripePromise) {
@@ -72,6 +79,7 @@ function BookingPaymentBlockInner({
   const elements = useElements();
 
   const lastSubmitTrigger = useRef(submitTrigger);
+  const paymentMethodsRef = useRef<HTMLDivElement>(null);
 
   const [cardNumberComplete, setCardNumberComplete] = useState(false);
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
@@ -90,6 +98,11 @@ function BookingPaymentBlockInner({
 
     lastSubmitTrigger.current = submitTrigger;
 
+    if (!selectedMethod) {
+      onPaymentError("Choisissez un moyen de paiement.");
+      return;
+    }
+
     if (selectedMethod !== "card") {
       onPaymentError("Le paiement PayPal sera branché plus tard.");
       return;
@@ -102,6 +115,15 @@ function BookingPaymentBlockInner({
   function handleMethodChange(value: BookingPaymentMethod) {
     onSelectedMethodChange(value);
     onPaymentReadyChange(value === "card" && isCardComplete);
+
+    // Le formulaire carte se déplie sous l'option : on remonte le bloc en haut
+    // de la modale pour que le client le voie en entier sans avoir à scroller.
+    if (value === "card" && !isCard) {
+      paymentMethodsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
   }
 
   async function submitCardPayment() {
@@ -208,12 +230,17 @@ function BookingPaymentBlockInner({
         </span>
       </div>
 
-      <div className="mt-4 space-y-3">
-        <PaymentOption
-          active={selectedMethod === "card"}
+      <div
+        ref={paymentMethodsRef}
+        role="radiogroup"
+        aria-label="Moyen de paiement"
+        className="mt-4 scroll-mt-4 overflow-hidden rounded-[16px] border border-[#e1d8cb] bg-white"
+      >
+        <PaymentMethodRow
+          checked={isCard}
           title="Carte bancaire"
           description="CB, Visa, Mastercard"
-          onClick={() => handleMethodChange("card")}
+          onSelect={() => handleMethodChange("card")}
           logos={
             <>
               <CBLogo />
@@ -223,34 +250,17 @@ function BookingPaymentBlockInner({
           }
         />
 
-        <PaymentOption
-          active={selectedMethod === "paypal"}
-          title="PayPal"
-          description="Paiement rapide via PayPal"
-          onClick={() => handleMethodChange("paypal")}
-          logos={<PaypalLogo />}
-        />
+        {/* Toujours monté (les champs Stripe gardent leur saisie), replié visuellement */}
+        <div
+          className={[
+            "grid transition-[grid-template-rows] duration-300 ease-out",
+            isCard ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          ].join(" ")}
+        >
+          <div className="overflow-hidden" inert={!isCard}>
+            <div className="space-y-3 border-t border-[#eee7dc] bg-[#fcfaf7] p-4">
+              {IS_STRIPE_TEST_MODE && <DemoCardNotice />}
 
-        {isCard ? (
-          <div className="overflow-hidden rounded-[16px] border border-[#e1d8cb] bg-white">
-            <div className="flex items-center justify-between gap-3 border-b border-[#eee7dc] px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-[#1e1e1e]">
-                  Informations de carte
-                </p>
-                <p className="mt-0.5 text-xs text-[#8a847b]">
-                  Paiement sécurisé par Stripe
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <CBLogo />
-                <VisaLogo />
-                <MastercardLogo />
-              </div>
-            </div>
-
-            <div className="space-y-3 p-4">
               <StripeField label="Numéro de carte">
                 <CardNumberElement
                   options={stripeElementOptions}
@@ -274,29 +284,26 @@ function BookingPaymentBlockInner({
                 </StripeField>
               </div>
 
-              <div className="rounded-[14px] border border-[#e3dbcf] bg-[#fcfaf7] px-4 py-3 text-xs leading-5 text-[#6c675f]">
-                Une validation bancaire par SMS ou application peut être
-                demandée au moment du paiement.
-              </div>
+              <p className="flex items-start gap-1.5 text-xs leading-5 text-[#8a847b]">
+                <LockIcon />
+                Paiement chiffré et traité par Stripe. Une validation par SMS ou
+                application bancaire peut être demandée.
+              </p>
             </div>
           </div>
-        ) : (
-          <div className="rounded-[16px] border border-[#e1d8cb] bg-white p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-[#1e1e1e]">
-                  Paiement via PayPal
-                </p>
-                <p className="mt-1 text-xs leading-5 text-[#6c675f]">
-                  PayPal est sélectionnable côté UI, mais sera branché plus
-                  tard.
-                </p>
-              </div>
+        </div>
 
-              <PaypalLogo />
-            </div>
-          </div>
-        )}
+        <div className="border-t border-[#eee7dc]">
+          <PaymentMethodRow
+            checked={false}
+            disabled
+            title="PayPal"
+            description="Paiement rapide via PayPal"
+            badge="Bientôt"
+            onSelect={() => handleMethodChange("paypal")}
+            logos={<PaypalLogo />}
+          />
+        </div>
       </div>
 
       <p className="mt-3 text-xs leading-5 text-[#8a847b]">
@@ -372,41 +379,146 @@ function StripeField({
   );
 }
 
-function PaymentOption({
-  active,
+function PaymentMethodRow({
+  checked,
+  disabled = false,
   title,
   description,
+  badge,
   logos,
-  onClick,
+  onSelect,
 }: {
-  active: boolean;
+  checked: boolean;
+  disabled?: boolean;
   title: string;
   description: string;
+  badge?: string;
   logos: React.ReactNode;
-  onClick: () => void;
+  onSelect: () => void;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      role="radio"
+      aria-checked={checked}
+      aria-label={badge ? `${title} (${badge.toLowerCase()})` : title}
+      disabled={disabled}
+      onClick={onSelect}
       className={[
-        "w-full rounded-[16px] border p-4 text-left transition",
-        active
-          ? "border-[#314835] bg-[#f3f7f1]"
-          : "border-[#e1d8cb] bg-white hover:border-[#314835]/40",
-      ].join(" ")}
+        "flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors",
+        checked && "bg-[#f3f7f1]",
+        !checked && !disabled && "cursor-pointer hover:bg-[#faf8f4]",
+        disabled && "cursor-not-allowed",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-[#1e1e1e]">{title}</p>
-          <p className="mt-1 text-xs leading-5 text-[#6c675f]">
-            {description}
-          </p>
-        </div>
+      <span
+        aria-hidden
+        className={[
+          "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors",
+          checked ? "border-[#314835]" : "border-[#c9c0b2]",
+          disabled && "opacity-50",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <span
+          className={[
+            "h-2 w-2 rounded-full bg-[#314835] transition-transform duration-200",
+            checked ? "scale-100" : "scale-0",
+          ].join(" ")}
+        />
+      </span>
 
-        <div className="flex shrink-0 items-center gap-1.5">{logos}</div>
-      </div>
+      <span
+        className={["min-w-0 flex-1", disabled && "opacity-50"]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <span className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[#1e1e1e]">{title}</span>
+          {badge && (
+            <span className="rounded-full bg-[#efe9df] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8a847b]">
+              {badge}
+            </span>
+          )}
+        </span>
+        <span className="mt-0.5 block text-xs leading-5 text-[#6c675f]">
+          {description}
+        </span>
+      </span>
+
+      <span
+        className={[
+          "flex shrink-0 items-center gap-1.5",
+          disabled && "opacity-50 grayscale",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {logos}
+      </span>
     </button>
+  );
+}
+
+function DemoCardNotice() {
+  const [copied, setCopied] = useState(false);
+
+  async function copyCardNumber() {
+    try {
+      await navigator.clipboard.writeText(DEMO_CARD_NUMBER.replaceAll(" ", ""));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // Presse-papiers indisponible : le numéro reste lisible à l'écran
+    }
+  }
+
+  return (
+    <div className="rounded-[14px] border border-dashed border-[#c9b98f] bg-[#fbf6e9] px-4 py-3">
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-[#314835] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+          Démo
+        </span>
+        <p className="text-xs font-medium text-[#5c5443]">
+          Aucun débit réel : utilisez la carte de test Stripe.
+        </p>
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button
+          type="button"
+          onClick={copyCardNumber}
+          className="group flex cursor-pointer items-center gap-2 rounded-[10px] border border-[#e3d7b8] bg-white px-3 py-1.5 transition hover:border-[#314835]/40"
+          aria-label="Copier le numéro de carte de test"
+        >
+          <span className="font-mono text-[13px] tracking-[0.06em] text-[#1e1e1e]">
+            {DEMO_CARD_NUMBER}
+          </span>
+          <span className="text-[11px] font-semibold text-[#314835]">
+            {copied ? "Copié ✓" : "Copier"}
+          </span>
+        </button>
+
+        <p className="text-[11px] leading-4 text-[#8a847b]">
+          Date future au choix · CVC : 3 chiffres au choix
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 16 16"
+      className="mt-[3px] h-3 w-3 shrink-0 fill-current"
+    >
+      <path d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H4a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 15h8a1.5 1.5 0 0 0 1.5-1.5v-6A1.5 1.5 0 0 0 12 6h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 5H6V4.5a2 2 0 1 1 4 0V6Z" />
+    </svg>
   );
 }
 

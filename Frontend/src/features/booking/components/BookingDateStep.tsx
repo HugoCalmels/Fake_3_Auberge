@@ -81,10 +81,10 @@ export default function BookingDateStep({
 
             {days.map((day) => {
               const value = toInputDate(day);
-              const isCurrentMonth =
-                day.getMonth() === visibleMonth.getMonth();
+              const isCurrentMonth = day.getMonth() === visibleMonth.getMonth();
 
               const isToday = value === today;
+              const isPast = value < today;
               const isSelectedStart = value === startDate;
               const isSelectedEnd = value === endDate;
               const isSelected = isSelectedStart || isSelectedEnd;
@@ -101,10 +101,11 @@ export default function BookingDateStep({
                 >
                   <button
                     type="button"
+                    disabled={isPast}
                     onClick={() => onSelectDate(value)}
                     aria-label={formatHumanDate(value)}
                     className={[
-                      "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[15px] transition sm:h-11 sm:w-11 sm:text-[17px]",
+                      "flex h-9 w-9 enabled:cursor-pointer items-center justify-center rounded-full text-[15px] transition sm:h-11 sm:w-11 sm:text-[17px]",
                       "focus:outline-none focus:ring-2 focus:ring-[#314835]/30 focus:ring-offset-2",
 
                       isSelected &&
@@ -122,14 +123,24 @@ export default function BookingDateStep({
                       !isSelected &&
                         !isInRange &&
                         !isToday &&
+                        !isPast &&
                         isCurrentMonth &&
                         "text-[#1f1f1f] hover:bg-[#f3f5ef]",
 
                       !isSelected &&
                         !isInRange &&
                         !isToday &&
+                        !isPast &&
                         !isCurrentMonth &&
                         "text-[#d0c8bd] hover:bg-[#f3f5ef]",
+
+                      isPast &&
+                        isCurrentMonth &&
+                        "cursor-not-allowed text-[#b7b0a6]",
+
+                      isPast &&
+                        !isCurrentMonth &&
+                        "cursor-not-allowed text-[#e2dcd2]",
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -148,8 +159,7 @@ export default function BookingDateStep({
             <span className="font-medium text-[#1e1e1e]">Départ :</span>{" "}
             {endDate ? formatHumanDate(endDate) : "—"}
             <span className="mx-2 text-[#b7ae9f]">·</span>
-            <span className="font-medium text-[#1e1e1e]">Nuits :</span>{" "}
-            {nights}
+            <span className="font-medium text-[#1e1e1e]">Nuits :</span> {nights}
           </div>
         </div>
       </div>
@@ -185,8 +195,7 @@ function buildCalendarDays(visibleMonth: Date) {
   const offset = firstDayOfMonth.getDay();
   const firstVisibleDay = new Date(year, month, 1 - offset);
 
-  const visibleDayCount =
-    offset + lastDayOfMonth.getDate() <= 35 ? 35 : 42;
+  const visibleDayCount = offset + lastDayOfMonth.getDate() <= 35 ? 35 : 42;
 
   return Array.from({ length: visibleDayCount }, (_, index) => {
     const date = new Date(firstVisibleDay);

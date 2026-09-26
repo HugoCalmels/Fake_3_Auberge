@@ -122,6 +122,13 @@ export class BookingsService {
       );
     }
 
+    // Site public uniquement : l'admin peut toujours saisir une réservation passée
+    if (startDate.slice(0, 10) < getTodayInHotelTimezone()) {
+      throw new BadRequestException(
+        "La date d'arrivée ne peut pas être dans le passé.",
+      );
+    }
+
     if (!selections.length) {
       throw new BadRequestException('Aucune chambre sélectionnée.');
     }
@@ -271,4 +278,11 @@ export class BookingsService {
     const diff = end.getTime() - start.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   }
+}
+
+// "Aujourd'hui" au sens de l'auberge (YYYY-MM-DD), pas du fuseau UTC du serveur
+function getTodayInHotelTimezone() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris',
+  }).format(new Date());
 }
