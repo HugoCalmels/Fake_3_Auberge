@@ -225,7 +225,7 @@ export default function ContactSection() {
               <button
                 type="submit"
                 disabled={sending}
-                className="cursor-pointer rounded-full bg-[#7f8d81] px-8 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#f4efe7] transition hover:bg-[#6f7d71] disabled:cursor-not-allowed disabled:opacity-70"
+                className="cursor-pointer rounded-full bg-[#314835] px-8 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#f4efe7] shadow-sm transition hover:bg-[#263d2f] disabled:cursor-not-allowed disabled:bg-[#7f8d81] disabled:opacity-70"
               >
                 {sending ? "Envoi..." : "Envoyer"}
               </button>

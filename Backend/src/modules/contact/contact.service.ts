@@ -1,8 +1,14 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { CreateContactMessageDto } from './dto/create-contact-message.dto';
 
 @Injectable()
 export class ContactService {
+  private readonly logger = new Logger(ContactService.name);
+
   async sendContactMessage(dto: CreateContactMessageDto) {
     const apiKey = process.env.BREVO_API_KEY;
     const toEmail = process.env.CONTACT_TO_EMAIL;
@@ -57,6 +63,13 @@ export class ContactService {
     });
 
     if (!response.ok) {
+      // Détail Brevo (clé invalide, IP non autorisée, expéditeur non validé...)
+      // gardé côté serveur : le visiteur ne voit qu'un message générique.
+      const errorText = await response.text().catch(() => '');
+      this.logger.error(
+        `Brevo a refusé l'email de contact (HTTP ${response.status}) : ${errorText}`,
+      );
+
       throw new InternalServerErrorException(
         'Impossible d’envoyer le message.',
       );
