@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Footer() {
   return (
   <footer className="bg-[#314835] text-[#f4efe7]">
@@ -46,6 +48,13 @@ export default function Footer() {
           >
             Hugo Calmels
           </a>
+          {" · "}
+          <Link
+            href="/mentions-legales"
+            className="transition hover:text-white"
+          >
+            Mentions légales
+          </Link>
         </p>
       </div>
     </footer>
