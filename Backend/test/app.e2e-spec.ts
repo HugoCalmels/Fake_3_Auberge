@@ -136,6 +136,77 @@ describe('App (e2e)', () => {
     });
   });
 
+  describe('admin booking creation', () => {
+    const createdBookingIds: string[] = [];
+    const createdGroupIds: string[] = [];
+
+    afterAll(async () => {
+      await prisma.invoice.deleteMany({
+        where: { bookingGroupId: { in: createdGroupIds } },
+      });
+      await prisma.systemLog.deleteMany({
+        where: { bookingGroupId: { in: createdGroupIds } },
+      });
+      await prisma.booking.deleteMany({
+        where: { id: { in: createdBookingIds } },
+      });
+    });
+
+    it('creates a confirmed, server-priced booking (past dates allowed for admin)', async () => {
+      const login = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: DEMO_ADMIN_EMAIL, password: DEMO_ADMIN_PASSWORD })
+        .expect(201);
+      const sessionCookie = cookiePair(
+        findRawCookie(login.headers['set-cookie'], 'admin_token'),
+      )!;
+
+      const roomTypes = await request(app.getHttpServer())
+        .get('/bookings/room-types')
+        .expect(200);
+      const roomType = roomTypes.body[0];
+
+      const response = await request(app.getHttpServer())
+        .post('/admin/bookings')
+        .set('Cookie', [sessionCookie])
+        .send({
+          startDate: '2020-02-10',
+          endDate: '2020-02-13',
+          guestName: 'E2E Admin Guest',
+          guestEmail: 'e2e-admin@example.com',
+          paymentStatus: 'unpaid',
+          createdBy: 'admin',
+          selections: [
+            {
+              roomTypeId: roomType.id,
+              adults: 2,
+              children: 0,
+              mealPlanCode: 'room_only',
+            },
+          ],
+        })
+        .expect(201);
+
+      createdBookingIds.push(...response.body.bookingIds);
+
+      expect(response.body.pricing).toEqual(
+        expect.objectContaining({
+          nights: 3,
+          roomPrice: roomType.basePrice * 3,
+          totalPrice: roomType.basePrice * 3,
+        }),
+      );
+
+      const stored = await prisma.booking.findUnique({
+        where: { id: response.body.bookingIds[0] },
+      });
+      if (stored?.bookingGroupId) createdGroupIds.push(stored.bookingGroupId);
+      expect(stored?.status).toBe('confirmed');
+      expect(stored?.bookingSource).toBe('admin_manual');
+      expect(stored?.persons).toBe(2);
+    });
+  });
+
   describe('brute-force lockout is persisted (not in-memory)', () => {
     const lockoutEmail = 'e2e-lockout-test@example.com';
 

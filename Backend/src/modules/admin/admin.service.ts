@@ -18,7 +18,10 @@ import {
   getNights,
   mapAdminBooking,
 } from './admin.utils';
-import { allocateRoomsForSelections } from '../bookings/booking-room-allocation.util';
+import {
+  createPricedBookings,
+  parseStayDates,
+} from '../bookings/booking-creation.util';
 import { CreateAdminRoomDto } from './dto/create-admin-room.dto';
 import { UpdateAdminRoomStatusDto } from './dto/update-admin-room-status.dto';
 import { CreateAdminRoomTypeDto } from './dto/create-admin-room-type.dto';
@@ -316,151 +319,33 @@ export class AdminService {
       selections,
     } = dto;
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException('Dates invalides.');
-    }
-
-    if (end <= start) {
-      throw new BadRequestException(
-        "La date de départ doit être après la date d'arrivée.",
-      );
-    }
-
-    if (!selections.length) {
-      throw new BadRequestException('Aucune chambre sélectionnée.');
-    }
-
-    const nights = getNights(start, end);
+    const { start, end, nights } = parseStayDates(startDate, endDate);
     const bookingGroupId = crypto.randomUUID();
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const normalizedGuestName = guestName.trim();
-      const normalizedGuestEmail = guestEmail.trim().toLowerCase();
-      const normalizedGuestPhone = guestPhone?.trim() || null;
-      const normalizedNotes = notes?.trim() || null;
-      const normalizedPaymentNote = paymentNote?.trim() || null;
-
-      const resolvedBookingSource =
-        createdBy === 'visitor'
-          ? BookingSource.website
-          : BookingSource.admin_manual;
-
-      const allocatedRoomsByType = await allocateRoomsForSelections(
-        tx,
+    const created = await this.prisma.$transaction((tx) =>
+      createPricedBookings(tx, {
         selections,
         start,
         end,
-      );
-
-      const createdBookings: {
-        id: string;
-        roomId: string;
-        roomPrice: number;
-        mealPlanPrice: number;
-        totalPrice: number;
-      }[] = [];
-
-      for (const selection of selections) {
-        const allocation = allocatedRoomsByType.get(selection.roomTypeId);
-
-        if (!allocation) {
-          throw new BadRequestException('Allocation de chambre impossible.');
-        }
-
-        const room = allocation.rooms.shift();
-
-        if (!room) {
-          throw new BadRequestException(
-            `Plus de chambre disponible pour ${allocation.roomType.name}.`,
-          );
-        }
-
-        const mealPlan = await tx.mealPlan.findFirst({
-          where: {
-            code: selection.mealPlanCode as MealPlanCode,
-          },
-        });
-
-        if (!mealPlan) {
-          throw new BadRequestException('Formule introuvable.');
-        }
-
-        const persons = selection.adults + selection.children;
-        const adultMeals = selection.adults;
-        const childMeals = selection.children;
-
-        const roomPrice = allocation.roomType.basePrice * nights;
-        const mealPlanPrice =
-          (mealPlan.adultPrice * adultMeals +
-            mealPlan.childPrice * childMeals) *
-          nights;
-        const totalPrice = roomPrice + mealPlanPrice;
-
-        const booking = await tx.booking.create({
-          data: {
-            bookingGroupId,
-
-            roomId: room.id,
-            mealPlanId: mealPlan.id,
-
-            startDate: start,
-            endDate: end,
-
-            persons,
-            adultMeals,
-            childMeals,
-
-            guestName: normalizedGuestName,
-            guestEmail: normalizedGuestEmail,
-            guestPhone: normalizedGuestPhone,
-            notes: normalizedNotes,
-
-            status: BookingStatus.confirmed,
-            bookingSource: resolvedBookingSource,
-            paymentStatus: paymentStatus as PaymentStatus,
-            paymentNote: normalizedPaymentNote,
-
-            roomPrice,
-            mealPlanPrice,
-            totalPrice,
-          },
-          select: {
-            id: true,
-            roomId: true,
-            roomPrice: true,
-            mealPlanPrice: true,
-            totalPrice: true,
-          },
-        });
-
-        createdBookings.push(booking);
-      }
-
-      const pricing = createdBookings.reduce(
-        (acc, booking) => {
-          acc.roomPrice += booking.roomPrice;
-          acc.mealPlanPrice += booking.mealPlanPrice;
-          acc.totalPrice += booking.totalPrice;
-          return acc;
-        },
-        {
-          nights,
-          roomPrice: 0,
-          mealPlanPrice: 0,
-          totalPrice: 0,
-        },
-      );
-
-      return {
+        nights,
         bookingGroupId,
-        bookingIds: createdBookings.map((booking) => booking.id),
-        roomIds: createdBookings.map((booking) => booking.roomId),
-        pricing,
-      };
-    });
+        extraData: {
+          guestName: guestName.trim(),
+          guestEmail: guestEmail.trim().toLowerCase(),
+          guestPhone: guestPhone?.trim() || null,
+          notes: notes?.trim() || null,
+          status: BookingStatus.confirmed,
+          bookingSource:
+            createdBy === 'visitor'
+              ? BookingSource.website
+              : BookingSource.admin_manual,
+          paymentStatus: paymentStatus as PaymentStatus,
+          paymentNote: paymentNote?.trim() || null,
+        },
+      }),
+    );
+
+    const result = { bookingGroupId, ...created };
 
     if (paymentStatus === PaymentStatus.paid) {
       await this.invoicesService.createForBookingGroup({
