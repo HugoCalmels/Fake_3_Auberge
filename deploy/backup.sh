@@ -25,3 +25,23 @@ find "$BACKUP_DIR" -type f \( -name 'db-*.dump' -o -name 'uploads-*.tgz' \) -mti
 find "$BACKUP_DIR" -type f -name '*.tmp' -delete
 
 echo "$(date -Is) backup ok: db-$STAMP.dump ($(du -h "$BACKUP_DIR/db-$STAMP.dump" | cut -f1)), uploads-$STAMP.tgz ($(du -h "$BACKUP_DIR/uploads-$STAMP.tgz" | cut -f1))"
+
+# Off-site copy to Backblaze B2 (survives losing the whole VPS), if configured in .env
+B2_KEY_ID=$(grep -E '^B2_KEY_ID=' .env | cut -d= -f2- || true)
+B2_APP_KEY=$(grep -E '^B2_APP_KEY=' .env | cut -d= -f2- || true)
+B2_BUCKET=$(grep -E '^B2_BUCKET=' .env | cut -d= -f2- || true)
+OFFSITE_RETENTION_DAYS="${OFFSITE_RETENTION_DAYS:-30}"
+
+if [ -n "$B2_KEY_ID" ] && [ -n "$B2_APP_KEY" ] && [ -n "$B2_BUCKET" ]; then
+  # rclone reads the remote definition from env vars: nothing written to disk
+  export RCLONE_CONFIG_B2_TYPE=b2
+  export RCLONE_CONFIG_B2_ACCOUNT="$B2_KEY_ID"
+  export RCLONE_CONFIG_B2_KEY="$B2_APP_KEY"
+  export RCLONE_CONFIG_B2_HARD_DELETE=true
+
+  rclone copy "$BACKUP_DIR" "b2:$B2_BUCKET/auberge" --include 'db-*.dump' --include 'uploads-*.tgz'
+  rclone delete "b2:$B2_BUCKET/auberge" --min-age "${OFFSITE_RETENTION_DAYS}d"
+  echo "$(date -Is) off-site copy ok: b2:$B2_BUCKET/auberge (${OFFSITE_RETENTION_DAYS}-day retention)"
+else
+  echo "$(date -Is) off-site copy skipped: B2_KEY_ID / B2_APP_KEY / B2_BUCKET not set in deploy/.env"
+fi

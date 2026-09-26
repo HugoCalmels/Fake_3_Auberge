@@ -9,7 +9,7 @@ export DEBIAN_FRONTEND=noninteractive
 echo "==> System updates"
 apt-get update -q
 apt-get upgrade -yq
-apt-get install -yq ufw fail2ban unattended-upgrades curl git ca-certificates
+apt-get install -yq ufw fail2ban unattended-upgrades curl git ca-certificates rclone
 
 echo "==> Automatic security updates"
 dpkg-reconfigure -f noninteractive unattended-upgrades
