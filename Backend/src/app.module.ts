@@ -9,6 +9,7 @@ import { ContactModule } from './modules/contact/contact.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { SystemLogsModule } from './modules/system-logs/system-logs.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { StatsModule } from './modules/stats/stats.module';
     PaymentsModule,
     SystemLogsModule,
     StatsModule,
+    HealthModule,
   ],
   providers: [
     {

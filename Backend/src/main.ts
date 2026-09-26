@@ -12,6 +12,12 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  // En prod l'API est derrière Caddy : sans ça, req.ip vaut l'IP de Caddy pour
+  // TOUS les visiteurs (limite de requêtes et anti-brute-force partagés par tous).
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   app.use(
     helmet({
       // Les photos des chambres (/rooms/*) sont affichées par le front, servi
