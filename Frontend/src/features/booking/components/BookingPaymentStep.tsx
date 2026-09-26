@@ -232,12 +232,13 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-[#1e1e1e]">
+    // Le <label> englobe le champ : le libellé lui est associé (clic, lecteurs d'écran)
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-[#1e1e1e]">
         {label}
-      </label>
+      </span>
       {children}
-    </div>
+    </label>
   );
 }
 

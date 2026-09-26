@@ -45,12 +45,17 @@ export default function AdminPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-[#1e1e1e]">
+                <label
+                  htmlFor="admin-email"
+                  className="mb-1 block text-sm font-medium text-[#1e1e1e]"
+                >
                   Email
                 </label>
 
                 <input
+                  id="admin-email"
                   type="email"
+                  autoComplete="username"
                   className="w-full rounded-xl border border-[#d8d0c2] bg-white px-3 py-2.5 text-[#1e1e1e] outline-none transition focus:border-[#314835]"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -60,12 +65,17 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-[#1e1e1e]">
+                <label
+                  htmlFor="admin-password"
+                  className="mb-1 block text-sm font-medium text-[#1e1e1e]"
+                >
                   Mot de passe
                 </label>
 
                 <input
+                  id="admin-password"
                   type="password"
+                  autoComplete="current-password"
                   className="w-full rounded-xl border border-[#d8d0c2] bg-white px-3 py-2.5 text-[#1e1e1e] outline-none transition focus:border-[#314835]"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

@@ -52,7 +52,9 @@ export default function BookingDateStep({
           </div>
 
           <div className="flex items-center justify-center gap-2 sm:justify-end">
-            <CalendarNavButton onClick={onPrevMonth}>←</CalendarNavButton>
+            <CalendarNavButton onClick={onPrevMonth} label="Mois précédent">
+              ←
+            </CalendarNavButton>
 
             <button
               type="button"
@@ -62,7 +64,9 @@ export default function BookingDateStep({
               Aujourd’hui
             </button>
 
-            <CalendarNavButton onClick={onNextMonth}>→</CalendarNavButton>
+            <CalendarNavButton onClick={onNextMonth} label="Mois suivant">
+              →
+            </CalendarNavButton>
           </div>
         </div>
       </div>
@@ -169,15 +173,19 @@ export default function BookingDateStep({
 
 function CalendarNavButton({
   children,
+  label,
   onClick,
 }: {
   children: React.ReactNode;
+  label: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
+      title={label}
       className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d0c2] bg-white text-[15px] text-[#314835] transition hover:bg-[#f7f3ec]"
     >
       {children}
