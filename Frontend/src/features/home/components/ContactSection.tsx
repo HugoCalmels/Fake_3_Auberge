@@ -112,7 +112,7 @@ export default function ContactSection() {
     className="text-4xl font-semibold leading-[1.05] tracking-[-0.03em] text-[#2d2c29] sm:text-5xl"
     style={{ marginBottom: "32px" }}
   >
-    Infos pratiques
+    Infos/contact
   </h2>
 
   <div style={{ marginTop: "32px" }}>
