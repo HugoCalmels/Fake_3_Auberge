@@ -1,76 +1,38 @@
-# Fake 3 Auberge
+# Auberge du Fauxcalm
 
-Application web de démonstration pour une auberge de montagne.
+Mini PMS pour une auberge de montagne : site public, réservation avec paiement en ligne, back-office.
+Démo, faux client.
 
-## Démonstration
-
-* Site : [https://auberge-du-fauxcalm.netlify.app/](https://auberge-du-fauxcalm.netlify.app/)
-* Vidéo (version béta) : [https://www.youtube.com/watch?v=chLyGFvjDDo](https://www.youtube.com/watch?v=chLyGFvjDDo)
-
-## Stack
-
-* Frontend : Next.js 15, React 19, TypeScript, Tailwind CSS
-* Backend : NestJS 11, TypeScript, Prisma, PostgreSQL
-* Paiement : Stripe
-* Email : Brevo
-* Outils : ESLint, Prettier, Jest
+[Site](https://auberge-du-fauxcalm.netlify.app/) · [Captures et présentation](https://hugo-calmels.fr/fr/sites-web/site-dynamique-avance)
 
 ## Fonctionnalités
 
-### Site public
+- Réservation en ligne, disponibilités en temps réel
+- Paiement Stripe, facture PDF et e-mail de confirmation
+- Back-office : planning, réservations, chambres, statistiques, journal
 
-* Landing page
-* Réservation en ligne
-* Disponibilités en temps réel
-* Sélection des chambres
-* Paiement Stripe
-* Confirmation de réservation
+## Stack
 
-### Administration
+- Front : Next.js 16, React 19, TypeScript, Tailwind CSS 4 — Netlify
+- API : NestJS 11, Prisma 7, PostgreSQL — VPS, Docker, Caddy
+- Stripe, Brevo, pdfkit
+- Jest, Playwright, GitHub Actions
 
-* Planning des réservations
-* Gestion des chambres
-* Gestion des types de chambres
-* Création de réservation
-* Modification de réservation
-* Assignation des chambres
-* Statistiques
-* Journal système
-* Factures PDF
+## Lancer en local
 
-## Objectif
-
-Construire un mini PMS (Property Management System) permettant de gérer les réservations, les chambres, les paiements et l'administration d'une auberge.
-
-Le projet couvre l'ensemble du parcours :
-
-* réservation publique
-* paiement en ligne
-* gestion administrative
-* planning
-* facturation
-
-## Installation
+API (`Backend/`, port 3001) :
 
 ```bash
 npm install
-```
-
-### Frontend
-
-```bash
-npm run dev
-```
-
-### Backend
-
-```bash
+npx prisma migrate dev
 npm run start:dev
 ```
 
-### Base de données
+Front (`Frontend/`, port 3000) :
 
 ```bash
-npx prisma migrate dev
-npx prisma db seed
+npm install
+npm run dev
 ```
+
+Variables d'environnement : voir `Backend/.env.example`.
