@@ -97,7 +97,7 @@ export class PaymentsService {
               currency: 'eur',
               unit_amount: bookingResult.pricing.totalPrice * 100,
               product_data: {
-                name: 'Auberge du Montcalm',
+                name: 'Auberge du Fauxcalm',
                 description: `Réservation · ${bookingResult.selectionCount} chambre(s) · ${bookingResult.pricing.nights} nuit(s)`,
               },
             },
@@ -183,7 +183,7 @@ export class PaymentsService {
           bookingIds: bookingResult.bookingIds.join(','),
           paymentMethod: dto.paymentMethod,
         },
-        description: `Auberge du Montcalm · ${bookingResult.selectionCount} chambre(s) · ${bookingResult.pricing.nights} nuit(s)`,
+        description: `Auberge du Fauxcalm · ${bookingResult.selectionCount} chambre(s) · ${bookingResult.pricing.nights} nuit(s)`,
       });
     } catch (error) {
       await this.cancelPendingBookingsAfterWebsiteFailure({

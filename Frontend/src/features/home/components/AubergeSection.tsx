@@ -34,7 +34,7 @@ export default function AubergeSection() {
           <div className="relative aspect-[4/5]">
 <Image
   src="/images/facade4-auberge.webp"
-  alt="Auberge du Montcalm"
+  alt="Auberge du Fauxcalm"
   fill
   sizes="(min-width: 1024px) 300px, 100vw"
   className="object-cover"

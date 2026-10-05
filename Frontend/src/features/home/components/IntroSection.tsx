@@ -4,7 +4,7 @@ export default function IntroSection() {
       <div className="max-w-[720px] space-y-6 text-[15px] leading-8 text-[#5f5a52] sm:text-base">
         <p>
           Située dans le village d’Auzat, au cœur du Parc Naturel Régional dans
-          un écrin de montagnes et de verdure, l’Auberge du Montcalm est ouverte
+          un écrin de montagnes et de verdure, l’Auberge du Fauxcalm est ouverte
           toute l’année, en toute saison.
         </p>
 

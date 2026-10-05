@@ -20,7 +20,7 @@ export class MailerService {
   async sendEmail(input: SendEmailInput) {
     const apiKey = process.env.BREVO_API_KEY;
     const fromEmail = process.env.CONTACT_FROM_EMAIL;
-    const fromName = process.env.CONTACT_FROM_NAME || 'Auberge du Montcalm';
+    const fromName = process.env.CONTACT_FROM_NAME || 'Auberge du Fauxcalm';
 
     if (!apiKey || !fromEmail) {
       throw new InternalServerErrorException('Configuration email manquante.');
@@ -117,7 +117,7 @@ export class MailerService {
               : ''
           }
 
-          <p>À bientôt,<br />Auberge du Montcalm</p>
+          <p>À bientôt,<br />Auberge du Fauxcalm</p>
         </div>
       `,
     });
@@ -139,7 +139,7 @@ export class MailerService {
 
     await this.sendEmail({
       to: toEmail,
-      toName: 'Auberge du Montcalm',
+      toName: 'Auberge du Fauxcalm',
       subject: `Nouvelle réservation payée - ${input.guestName}`,
       attachments: input.invoicePdfBase64
         ? [

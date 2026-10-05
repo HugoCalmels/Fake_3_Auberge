@@ -56,7 +56,7 @@ export class InvoicePdfService {
       doc
         .fontSize(9)
         .font('Helvetica')
-        .text('12 route du Montcalm', 50, 80)
+        .text('12 route du Fauxcalm', 50, 80)
         .text('09220 Auzat, France', 50, 94)
         .text('contact@auberge-du-fauxcalm.fr', 50, 108)
         .text('SIRET : 123 456 789 00012', 50, 122)

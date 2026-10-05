@@ -13,7 +13,7 @@ export class ContactService {
     const apiKey = process.env.BREVO_API_KEY;
     const toEmail = process.env.CONTACT_TO_EMAIL;
     const fromEmail = process.env.CONTACT_FROM_EMAIL;
-    const fromName = process.env.CONTACT_FROM_NAME || 'Auberge du Montcalm';
+    const fromName = process.env.CONTACT_FROM_NAME || 'Auberge du Fauxcalm';
 
     if (!apiKey || !toEmail || !fromEmail) {
       throw new InternalServerErrorException('Configuration email manquante.');
@@ -50,7 +50,7 @@ export class ContactService {
         to: [
           {
             email: toEmail,
-            name: 'Auberge du Montcalm',
+            name: 'Auberge du Fauxcalm',
           },
         ],
         replyTo: {
