@@ -3,7 +3,7 @@
 Mini PMS pour une auberge de montagne : site public, réservation avec paiement en ligne, back-office.
 Démo, faux client.
 
-[Site](https://auberge-du-fauxcalm.netlify.app/) · [Captures et présentation](https://hugo-calmels.fr/fr/sites-web/site-dynamique-avance)
+[Site](https://auberge-du-fauxcalm.netlify.app/) · [Captures et présentation](https://hugo-calmels.fr/sites-web/site-dynamique-avance)
 
 ## Fonctionnalités
 
