@@ -37,7 +37,30 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        // Pages statiques : cache CDN Netlify (purgé à chaque déploiement) au lieu
+        // de repasser par la fonction Next (cold start de plusieurs secondes).
+        // Le navigateur, lui, revalide toujours (max-age=0).
+        source: "/",
+        headers: [
+          {
+            key: "Netlify-CDN-Cache-Control",
+            value: "public, s-maxage=3600, stale-while-revalidate=86400, durable",
+          },
+        ],
+      },
+      {
+        source: "/mentions-legales",
+        headers: [
+          {
+            key: "Netlify-CDN-Cache-Control",
+            value: "public, s-maxage=3600, stale-while-revalidate=86400, durable",
+          },
+        ],
+      },
+    ];
   },
 };
 
