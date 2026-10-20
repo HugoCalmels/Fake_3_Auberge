@@ -19,7 +19,7 @@ jobs:
       run:
         working-directory: Backend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -55,7 +55,7 @@ jobs:
       run:
         working-directory: Backend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -74,7 +74,7 @@ jobs:
       run:
         working-directory: Frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -125,7 +125,7 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: steps.guard.outputs.enabled == 'true'
       - uses: actions/setup-node@v5
         if: steps.guard.outputs.enabled == 'true'
